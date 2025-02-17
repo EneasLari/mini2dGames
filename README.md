@@ -6,7 +6,7 @@ Upcoming
 
 ---
 
-## **🔹 1️⃣ Minesweeper 💣**
+## **🔹 1️⃣ Minesweeper 💣** <<DONE>>
 
 🔸 **Concept:** Click on tiles to reveal numbers; avoid mines.  
 🔸 **How to Implement:**
