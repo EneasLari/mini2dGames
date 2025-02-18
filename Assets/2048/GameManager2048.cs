@@ -57,85 +57,107 @@ public class GameManager2048 : MonoBehaviour {
         if (isGameOver) yield break;
 
         bool moved = false;
-        bool[,] merged = new bool[gridSize, gridSize]; // Prevent multiple merges in one move
-        List<Tile2048> movingTiles = new List<Tile2048>(); // Store moving tiles
+        bool[,] merged = new bool[gridSize, gridSize]; // Track merged tiles
+        List<Coroutine> animations = new List<Coroutine>(); // Track animations
 
-        // ✅ Correct Loop Order Based on Movement Direction
+        // Define traversal order based on direction
         int startX = (direction.x > 0) ? gridSize - 1 : 0;
         int startY = (direction.y > 0) ? gridSize - 1 : 0;
         int stepX = (direction.x != 0) ? -direction.x : 1;
         int stepY = (direction.y != 0) ? -direction.y : 1;
 
-        // 🔥 Correct Order for UP/DOWN Movements
-        if (direction.y < 0) { startY = 0; stepY = 1; } // ✅ UP: Start at TOP (Y=0) go down
-        if (direction.y > 0) { startY = gridSize - 1; stepY = -1; } // ✅ DOWN: Start at BOTTOM (Y=3) go up
-
-        // ✅ Move all tiles first
+        // ✅ STEP 1: MOVE TILES FIRST (No merging yet)
         for (int y = startY; y >= 0 && y < gridSize; y += stepY) {
             for (int x = startX; x >= 0 && x < gridSize; x += stepX) {
                 Tile2048 currentTile = grid[x, y];
+                if (currentTile == null) continue;
 
-                if (currentTile != null) {
-                    Vector2Int newPos = new Vector2Int(x, y);
-                    Vector2Int nextPos = newPos + direction;
+                Vector2Int newPos = new Vector2Int(x, y);
+                Vector2Int nextPos = newPos +  new Vector2Int(direction.x, -direction.y);
 
-                    while (IsWithinBounds(nextPos) && grid[nextPos.x, nextPos.y] == null) {
-                        grid[nextPos.x, nextPos.y] = currentTile;
-                        grid[newPos.x, newPos.y] = null;
-                        newPos = nextPos;
-                        nextPos = newPos + direction;
-                        moved = true;
-                    }
+                while (IsWithinBounds(nextPos) && grid[nextPos.x, nextPos.y] == null) {
+                    grid[nextPos.x, nextPos.y] = currentTile;
+                    grid[newPos.x, newPos.y] = null;
+                    newPos = nextPos;
+                    nextPos = newPos + new Vector2Int(direction.x, -direction.y);
+                    moved = true;
+                }
 
-                    // ✅ Update logic position
-                    currentTile.SetGridPosition(newPos.x, newPos.y);
+                // Queue movement animation
+                if (newPos != new Vector2Int(x, y)) {
+                    animations.Add(StartCoroutine(currentTile.MoveAnimation(GridManager2048.Instance.GetCellAt(newPos.x, newPos.y).position)));
+                }
 
-                    // ✅ Add to movingTiles list
-                    if (newPos != new Vector2Int(x, y)) {
-                        movingTiles.Add(currentTile);
-                    }
+                // Update tile's logical position
+                currentTile.SetGridPosition(newPos.x, newPos.y);
+            }
+        }
+
+        // ✅ WAIT FOR MOVEMENT ANIMATIONS TO FINISH BEFORE MERGING
+        yield return WaitForAnimations(animations);
+        animations.Clear(); // Clear animation list for merging phase
+
+        // ✅ STEP 2: MERGE TILES AFTER MOVEMENT COMPLETES
+        for (int y = startY; y >= 0 && y < gridSize; y += stepY) {
+            for (int x = startX; x >= 0 && x < gridSize; x += stepX) {
+                Tile2048 currentTile = grid[x, y];
+                if (currentTile == null) continue;
+
+                Vector2Int nextPos = new Vector2Int(x, y) + new Vector2Int(direction.x, -direction.y);
+
+                if (IsWithinBounds(nextPos) && grid[nextPos.x, nextPos.y] != null &&
+                    grid[nextPos.x, nextPos.y].value == currentTile.value &&
+                    !merged[nextPos.x, nextPos.y]) {
+
+                    // Merge tiles
+                    grid[nextPos.x, nextPos.y].SetValue(grid[nextPos.x, nextPos.y].value * 2);
+                    score += grid[nextPos.x, nextPos.y].value;
+                    merged[nextPos.x, nextPos.y] = true;
+
+                    // Destroy old tile AFTER movement animation finishes
+                    StartCoroutine(DestroyAfterAnimation(currentTile, GridManager2048.Instance.GetCellAt(nextPos.x, nextPos.y).position));
+                    grid[x, y] = null;
+                    moved = true;
                 }
             }
         }
 
-        // ✅ Merge while tiles are still moving
+        // ✅ WAIT FOR MERGE ANIMATIONS TO FINISH
+        yield return WaitForAnimations(animations);
+        animations.Clear(); // Clear animation list for final move phase
+
+        // ✅ STEP 3: MOVE REMAINING TILES AFTER MERGING (To fill gaps)
         for (int y = startY; y >= 0 && y < gridSize; y += stepY) {
             for (int x = startX; x >= 0 && x < gridSize; x += stepX) {
                 Tile2048 currentTile = grid[x, y];
+                if (currentTile == null) continue;
 
-                if (currentTile != null) {
-                    Vector2Int nextPos = new Vector2Int(x, y) + direction;
+                Vector2Int newPos = new Vector2Int(x, y);
+                Vector2Int nextPos = newPos + new Vector2Int(direction.x, -direction.y);
 
-                    if (IsWithinBounds(nextPos) && grid[nextPos.x, nextPos.y] != null &&
-                        grid[nextPos.x, nextPos.y].value == currentTile.value && !merged[nextPos.x, nextPos.y]) {
-                        // ✅ Merge tiles
-                        grid[nextPos.x, nextPos.y].SetValue(grid[nextPos.x, nextPos.y].value * 2);
-                        score += grid[nextPos.x, nextPos.y].value;
-
-                        // ✅ Destroy old tile AFTER animation
-                        StartCoroutine(DestroyAfterAnimation(currentTile, GridManager2048.Instance.GetCellAt(nextPos.x, nextPos.y).position));
-
-                        grid[x, y] = null;
-                        merged[nextPos.x, nextPos.y] = true;
-                        moved = true;
-                    }
+                while (IsWithinBounds(nextPos) && grid[nextPos.x, nextPos.y] == null) {
+                    grid[nextPos.x, nextPos.y] = currentTile;
+                    grid[newPos.x, newPos.y] = null;
+                    newPos = nextPos;
+                    nextPos = newPos + new Vector2Int(direction.x, -direction.y);
+                    moved = true;
                 }
+
+                // Queue final movement animation
+                if (newPos != new Vector2Int(x, y)) {
+                    animations.Add(StartCoroutine(currentTile.MoveAnimation(GridManager2048.Instance.GetCellAt(newPos.x, newPos.y).position)));
+                }
+
+                // Update tile's logical position
+                currentTile.SetGridPosition(newPos.x, newPos.y);
             }
         }
 
-        // ✅ Move all tiles together
-        List<Coroutine> animations = new List<Coroutine>();
-        foreach (Tile2048 tile in movingTiles) {
-            animations.Add(StartCoroutine(tile.MoveAnimation(GridManager2048.Instance.GetCellAt(tile.position.x, tile.position.y).position)));
-        }
+        // ✅ WAIT FOR FINAL MOVEMENT ANIMATIONS
+        yield return WaitForAnimations(animations);
 
-        // ✅ Wait for all animations to finish
-        foreach (Coroutine animation in animations) {
-            yield return animation;
-        }
-
+        // ✅ STEP 4: SPAWN A NEW TILE ONLY IF MOVEMENT OR MERGING HAPPENED
         if (moved) {
-            yield return new WaitForSeconds(0.05f);
             SpawnTile();
             UpdateScoreUI();
         } else if (!CanMove()) {
@@ -146,6 +168,11 @@ public class GameManager2048 : MonoBehaviour {
 
 
 
+    private IEnumerator WaitForAnimations(List<Coroutine> animations) {
+        foreach (Coroutine anim in animations) {
+            yield return anim;
+        }
+    }
 
 
     private IEnumerator DestroyAfterAnimation(Tile2048 tile, Vector3 targetPosition) {
@@ -166,14 +193,20 @@ public class GameManager2048 : MonoBehaviour {
     bool CanMove() {
         for (int x = 0; x < gridSize; x++) {
             for (int y = 0; y < gridSize; y++) {
-                if (grid[x, y] == null) return true;
+                if (grid[x, y] == null) return true; // ✅ Check for empty tiles (valid move)
 
-                if (IsWithinBounds(new Vector2Int(x + 1, y)) && grid[x + 1, y].value == grid[x, y].value) return true;
-                if (IsWithinBounds(new Vector2Int(x, y + 1)) && grid[x, y + 1].value == grid[x, y].value) return true;
+                // ✅ Check if the right neighbor exists and has the same value
+                if (IsWithinBounds(new Vector2Int(x + 1, y)) && grid[x + 1, y] != null && grid[x + 1, y].value == grid[x, y].value)
+                    return true;
+
+                // ✅ Check if the bottom neighbor exists and has the same value
+                if (IsWithinBounds(new Vector2Int(x, y + 1)) && grid[x, y + 1] != null && grid[x, y + 1].value == grid[x, y].value)
+                    return true;
             }
         }
-        return false;
+        return false; // No moves available
     }
+
 
     void GameOver() {
         isGameOver = true;
