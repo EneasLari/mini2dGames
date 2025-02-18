@@ -18,7 +18,7 @@ Upcoming
 
 ---
 
-## **🔹 2️⃣ Connect Four 🔴🟡**
+## **🔹 2️⃣ Connect Four 🔴🟡** <<DONE>>
 
 🔸 **Concept:** Drop colored discs into a 7x6 grid; connect four in a row to win.  
 🔸 **How to Implement:**
