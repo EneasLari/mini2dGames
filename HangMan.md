@@ -108,6 +108,17 @@ public class HangmanGame : MonoBehaviour {
         // Pick a random word
         selectedWord = wordList[Random.Range(0, wordList.Length)];
         displayedWord = new string('_', selectedWord.Length).ToCharArray();
+
+        // Reveal the first and last letter, including all their occurrences
+        char firstLetter = selectedWord[0];
+        char lastLetter = selectedWord[selectedWord.Length - 1];
+
+        for (int i = 0; i < selectedWord.Length; i++) {
+            if (selectedWord[i] == firstLetter || selectedWord[i] == lastLetter) {
+                displayedWord[i] = selectedWord[i];
+            }
+        }
+
         hiddenWordText.text = string.Join(" ", displayedWord);
 
         // Reset mistakes & UI
@@ -115,11 +126,12 @@ public class HangmanGame : MonoBehaviour {
         incorrectGuesses.Clear();
         incorrectGuessesText.text = "Incorrect: ";
 
-        // Hide all 3D hangman parts
+        // Hide all hangman parts
         foreach (GameObject part in hangmanParts) part.SetActive(false);
 
         // Reactivate all letter buttons
         foreach (Button button in letterButtons) button.interactable = true;
+
     }
 
     void OnLetterPressed(Button button) {
