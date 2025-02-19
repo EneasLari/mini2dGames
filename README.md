@@ -6,7 +6,7 @@ Upcoming
 
 ---
 
-## **🔹 1️⃣ Minesweeper 💣** <<DONE>>
+## **🔹 1️⃣ Minesweeper 💣** DONE
 
 🔸 **Concept:** Click on tiles to reveal numbers; avoid mines.  
 🔸 **How to Implement:**
@@ -18,7 +18,7 @@ Upcoming
 
 ---
 
-## **🔹 2️⃣ Connect Four 🔴🟡** <<DONE>>
+## **🔹 2️⃣ Connect Four 🔴🟡** DONE
 
 🔸 **Concept:** Drop colored discs into a 7x6 grid; connect four in a row to win.  
 🔸 **How to Implement:**
@@ -30,7 +30,7 @@ Upcoming
 
 ---
 
-## **🔹 3️⃣ 2048 Puzzle 🔢**
+## **🔹 3️⃣ 2048 Puzzle 🔢**DONE
 
 🔸 **Concept:** Slide numbered tiles to merge and create **2048**.  
 🔸 **How to Implement:**
@@ -42,7 +42,7 @@ Upcoming
 
 ---
 
-## **🔹 4️⃣ Hangman 🎭**
+## **🔹 4️⃣ Hangman 🎭**DONE
 
 🔸 **Concept:** Guess the hidden word, letter by letter, before running out of chances.  
 🔸 **How to Implement:**
