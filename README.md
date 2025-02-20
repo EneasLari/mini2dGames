@@ -30,7 +30,7 @@ Upcoming
 
 ---
 
-## **🔹 3️⃣ 2048 Puzzle 🔢**DONE
+## **🔹 3️⃣ 2048 Puzzle 🔢** DONE
 
 🔸 **Concept:** Slide numbered tiles to merge and create **2048**.  
 🔸 **How to Implement:**
@@ -42,7 +42,7 @@ Upcoming
 
 ---
 
-## **🔹 4️⃣ Hangman 🎭**DONE
+## **🔹 4️⃣ Hangman 🎭** DONE
 
 🔸 **Concept:** Guess the hidden word, letter by letter, before running out of chances.  
 🔸 **How to Implement:**
@@ -54,7 +54,7 @@ Upcoming
 
 ---
 
-## **🔹 5️⃣ Lights Out 💡**
+## **🔹 5️⃣ Lights Out 💡** DONE
 
 🔸 **Concept:** A grid of lights; clicking one toggles adjacent ones. Turn all lights off to win.  
 🔸 **How to Implement:**
@@ -66,7 +66,7 @@ Upcoming
 
 ---
 
-## **🔹 6️⃣ Mastermind 🎨**
+## **🔹 6️⃣ Mastermind 🎨** DONE
 
 🔸 **Concept:** Guess a secret color code within limited attempts.  
 🔸 **How to Implement:**
