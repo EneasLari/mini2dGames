@@ -128,8 +128,6 @@ Upcoming
 
 Word games
 
-Great! Here are **10 simple word-based games** you can create in Unity 🎮📝. These games focus on **letters, words, and logic**, making them easy to develop while improving your C# and UI skills!
-
 ---
 
 ## **🔹 1️⃣ Hangman 🎭**
@@ -279,8 +277,6 @@ Great! Here are **10 simple word-based games** you can create in Unity 🎮📝.
 ---
 
 Image Games
-
-Great! Here are **10 simple Unity games that use images** for gameplay. These games focus on **visual recognition, pattern matching, and image-based logic**, making them **fun and easy to create**. 🎮📸
 
 ---
 
@@ -679,7 +675,7 @@ Here are **five different memory-based games** that use unique concepts! 🎮�
 
 ---
 
-Got it! Here are **five fresh memory game ideas** that are **different** from the usual ones. Each one has a unique concept! 🎮🧠
+**Five fresh memory game ideas** that are **different** from the usual ones. Each one has a unique concept! 🎮🧠
 
 ---
 
