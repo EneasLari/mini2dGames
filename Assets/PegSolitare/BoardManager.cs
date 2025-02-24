@@ -46,8 +46,7 @@ public class BoardManager : MonoBehaviour {
                 {
                     Transform hole = holeTransforms[x, y];
                     if (hole != null) {
-                        Vector2 spawnPosition = hole.position; // Use stored hole world position
-                        GameObject pegObj = Instantiate(pegPrefab, spawnPosition, Quaternion.identity);
+                        GameObject pegObj = Instantiate(pegPrefab, hole.position, Quaternion.identity, hole);
                         Peg peg = pegObj.GetComponent<Peg>();
                         pegs[new Vector2Int(x, y)] = peg;
                     }
@@ -55,6 +54,7 @@ public class BoardManager : MonoBehaviour {
             }
         }
     }
+
 
     public void SelectPeg(Peg peg) {
         if (selectedPeg == null) {
