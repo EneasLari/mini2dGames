@@ -78,7 +78,7 @@ Upcoming
 
 ---
 
-## **🔹 7️⃣ Peg Solitaire 🎯**
+## **🔹 7️⃣ Peg Solitaire 🎯** DONE
 
 🔸 **Concept:** Jump pegs over each other to remove them; only one peg should remain.  
 🔸 **How to Implement:**

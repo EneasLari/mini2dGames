@@ -1,15 +1,21 @@
 using UnityEngine;
+using UnityEngine.EventSystems;
 
-public class Peg : MonoBehaviour {
-    private Vector2 originalPosition;
+public class Peg : MonoBehaviour, IPointerClickHandler {
+    public Vector2Int boardPosition; // Set when the peg is placed
+
+    private Transform originalParent;
+    private Vector3 originalLocalPosition;
     private BoardManager boardManager;
 
     private void Start() {
-        boardManager = FindObjectOfType<BoardManager>();
-        originalPosition = transform.position;
+        boardManager = FindFirstObjectByType<BoardManager>();
+        // Store the original parent and local position (relative to the parent)
+        originalParent = transform.parent;
+        originalLocalPosition = transform.localPosition;
     }
 
-    private void OnMouseDown() {
+    public void OnPointerClick(PointerEventData eventData) {
         boardManager.SelectPeg(this);
     }
 
@@ -18,6 +24,8 @@ public class Peg : MonoBehaviour {
     }
 
     public void ResetPosition() {
-        transform.position = originalPosition;
+        // Reparent to the original parent and reset local position.
+        transform.SetParent(originalParent);
+        transform.localPosition = originalLocalPosition;
     }
 }
