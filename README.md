@@ -143,7 +143,7 @@ Word games
 
 ---
 
-## **🔹 2️⃣ Word Search 🔍**
+## **🔹 2️⃣ Word Search 🔍** DONE
 
 🔸 **Concept:** Find hidden words inside a letter grid.  
 🔸 **How to Implement:**
