@@ -42,18 +42,6 @@ Upcoming
 
 ---
 
-## **🔹 4️⃣ Hangman 🎭** DONE
-
-🔸 **Concept:** Guess the hidden word, letter by letter, before running out of chances.  
-🔸 **How to Implement:**
-
-- **Pick a random word from a list**
-- **Show correct letters when guessed**
-- **Draw parts of a stick figure for wrong guesses**  
-  🔸 **Learning:** String manipulation and UI interactions.
-
----
-
 ## **🔹 5️⃣ Lights Out 💡** DONE
 
 🔸 **Concept:** A grid of lights; clicking one toggles adjacent ones. Turn all lights off to win.  
@@ -130,16 +118,15 @@ Word games
 
 ---
 
-## **🔹 1️⃣ Hangman 🎭**
+## **🔹 4️⃣ Hangman 🎭** DONE
 
-🔸 **Concept:** Guess a hidden word by selecting letters before running out of attempts.  
+🔸 **Concept:** Guess the hidden word, letter by letter, before running out of chances.  
 🔸 **How to Implement:**
 
-- Select a **random word** from a word list.
-- Show underscores `_ _ _` for each letter.
-- Allow **letter guesses** (correct letters revealed, wrong guesses draw a stick figure).
-- **Win:** Word fully guessed. **Lose:** Figure fully drawn.  
-  🔸 **Learning:** String manipulation, UI updates, and state management.
+- **Pick a random word from a list**
+- **Show correct letters when guessed**
+- **Draw parts of a stick figure for wrong guesses**  
+  🔸 **Learning:** String manipulation and UI interactions.
 
 ---
 
