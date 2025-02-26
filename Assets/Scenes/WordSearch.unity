@@ -572,10 +572,10 @@ MonoBehaviour:
   m_ChildAlignment: 4
   m_StartCorner: 0
   m_StartAxis: 0
-  m_CellSize: {x: 50, y: 50}
-  m_Spacing: {x: 5, y: 5}
+  m_CellSize: {x: 70, y: 70}
+  m_Spacing: {x: 0, y: 0}
   m_Constraint: 2
-  m_ConstraintCount: 10
+  m_ConstraintCount: 15
 --- !u!114 &1554102792
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -583,7 +583,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1554102789}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
   m_Name: 
@@ -747,8 +747,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -3.4278, y: -342.17004}
-  m_SizeDelta: {x: 593.5107, y: 62.3401}
+  m_AnchoredPosition: {x: -749.7953, y: -1.7846}
+  m_SizeDelta: {x: 420.4, y: 65.9093}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &1923087129
 GameObject:
@@ -796,12 +796,27 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   letterButtonPrefab: {fileID: 2252075980610784244, guid: 65da94dd8603d4f4ca58eb757c6d18ca, type: 3}
   gridParent: {fileID: 1554102790}
-  gridSize: 10
+  gridSize: 15
   wordsToPlace:
   - UNITY
   - GAME
   - CODE
   - SCRIPT
+  - DEBUG
+  - PLAYER
+  - LEVEL
+  - REWARD
+  - OBJECT
+  - SYSTEM
+  - ENGINE
+  - VECTOR
+  - PHYSICS
+  - BUTTON
+  - INPUT
+  - ACTION
+  - LAYER
+  - METHOD
+  - STRUCTURE
 --- !u!4 &1923087132
 Transform:
   m_ObjectHideFlags: 0

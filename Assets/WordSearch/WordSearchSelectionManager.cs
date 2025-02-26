@@ -4,7 +4,7 @@ using TMPro;
 using System.Collections.Generic;
 using UnityEngine.EventSystems;
 
-public class SelectionManager : MonoBehaviour {
+public class WordSearchSelectionManager : MonoBehaviour {
     public WordSearchGridManager gridManager;
     public TMP_Text selectedWordText;
     private List<GameObject> selectedLetters = new List<GameObject>();
@@ -53,16 +53,17 @@ public class SelectionManager : MonoBehaviour {
         if (gridManager.wordsToPlace.Contains(selectedWord) && !foundWords.Contains(selectedWord)) {
             foundWords.Add(selectedWord);
             foreach (GameObject letter in selectedLetters) {
-                letter.GetComponent<Image>().color = Color.green;
+                letter.transform.parent.GetComponent<Image>().color = Color.green;
             }
-            if (foundWords.Count == gridManager.wordsToPlace.Count) {
+            if (foundWords.Count == gridManager.GetPlacedWords().Count) {
                 Debug.Log("You found all words! You win!");
             }
-        } else {
-            foreach (GameObject letter in selectedLetters) {
-                letter.GetComponent<Image>().color = Color.white;
-            }
-        }
+        } 
+        //else {
+        //    foreach (GameObject letter in selectedLetters) {
+        //        letter.GetComponent<Image>().color = Color.white;
+        //    }
+        //}
         selectedWord = "";
         selectedWordText.text = "";
         selectedLetters.Clear();
