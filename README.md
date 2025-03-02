@@ -143,7 +143,7 @@ Word games
 
 ---
 
-## **🔹 3️⃣ Anagram Solver 🔄**
+## **🔹 3️⃣ Anagram Solver 🔄** DONE
 
 🔸 **Concept:** Unscramble letters to form words.  
 🔸 **How to Implement:**
@@ -156,7 +156,7 @@ Word games
 
 ---
 
-## **🔹 4️⃣ Crossword Puzzle ✏️**
+## **🔹 4️⃣ Crossword Puzzle ✏️** Done
 
 🔸 **Concept:** Fill in blank spaces using hints.  
 🔸 **How to Implement:**
