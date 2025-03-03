@@ -208,7 +208,7 @@ Word games
 
 ---
 
-## **🔹 8️⃣ Letter Grid Challenge 🔠**
+## **🔹 8️⃣ Letter Grid Challenge 🔠** DONING
 
 🔸 **Concept:** Form as many words as possible from a **random 4x4 letter grid**.  
 🔸 **How to Implement:**
