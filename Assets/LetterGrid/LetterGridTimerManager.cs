@@ -1,8 +1,9 @@
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
 public class TimerManager : MonoBehaviour {
-    public Text timerText;
+    public TMP_Text timerText;
     public float gameTime = 60f; // 60 seconds
 
     private float timeLeft;
