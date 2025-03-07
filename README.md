@@ -195,7 +195,7 @@ Word games
 
 ---
 
-## **🔹 7️⃣ Typing Speed Test ⌨️**
+## **🔹 7️⃣ Typing Speed Test ⌨️** DONE
 
 🔸 **Concept:** Test how fast the player types a given sentence.  
 🔸 **How to Implement:**
