@@ -78,19 +78,7 @@ Upcoming
 
 ---
 
-## **🔹 8️⃣ Noughts & Crosses Variants ❌⭕**
-
-🔸 **Concept:** Like Tic-Tac-Toe, but larger board sizes (e.g., **5x5, 7x7**) or **more connections required** (e.g., **Connect 5**).  
-🔸 **How to Implement:**
-
-- **Extend Tic-Tac-Toe logic to bigger grids**
-- **Check for longer winning sequences**
-- **Add AI for single-player mode**  
-  🔸 **Learning:** Dynamic board sizes and pattern checking.
-
----
-
-## **🔹 9️⃣ KenKen Puzzle 🧩**
+## **🔹 9️⃣ KenKen Puzzle 🧩** DONE
 
 🔸 **Concept:** Like Sudoku, but with mathematical constraints.  
 🔸 **How to Implement:**
