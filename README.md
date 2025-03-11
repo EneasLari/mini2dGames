@@ -157,7 +157,7 @@ Word games
 
 ---
 
-## **🔹 5️⃣ Word Scramble 🧩**
+## **🔹 5️⃣ Word Scramble 🧩** Done
 
 🔸 **Concept:** Rearrange jumbled letters to form a valid word.  
 🔸 **How to Implement:**
@@ -209,7 +209,7 @@ Word games
 
 ---
 
-## **🔹 9️⃣ Name the Picture 🖼️**
+## **🔹 9️⃣ Name the Picture 🖼️** Done
 
 🔸 **Concept:** Guess the correct word based on a **picture hint**.  
 🔸 **How to Implement:**
