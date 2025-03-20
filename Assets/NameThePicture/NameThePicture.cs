@@ -19,7 +19,7 @@ public class NameThePicture : MonoBehaviour {
 
     public Image displayImage;
     public TMP_Text[] optionTexts;
-    public TMP_Text resulText;
+    public TMP_Text answerFeedbackText;
     public TMP_Text gameFinishedTxt;
     public Button replayButton; // Button to replay the game
     public GameObject gameFinishedPanel; // Panel to display when the game is finished
@@ -58,7 +58,7 @@ public class NameThePicture : MonoBehaviour {
     }
 
     void LoadNewQuestion() {
-        resulText.text = "";
+        answerFeedbackText.text = "";
         if (pictureData.pictures.Count == 0) {
             Debug.LogError("No images loaded!");
             return;
@@ -112,7 +112,7 @@ public class NameThePicture : MonoBehaviour {
 
     public IEnumerator SelectOption(int index) {
         if (index == correctIndex) {
-            resulText.text = "Correct Answer!";
+            answerFeedbackText.text = "Correct Answer!";
             if (correctAudioClip != null) {
                 audioSource.PlayOneShot(correctAudioClip);
             } else if (universalCorrectAudioClip != null) {
@@ -121,12 +121,12 @@ public class NameThePicture : MonoBehaviour {
             yield return new WaitForSeconds(1f);
             LoadNewQuestion();
         } else {
-            resulText.text = "Try Again!";
+            answerFeedbackText.text = "Try Again!";
             if (wrongAnswerAudioClip != null) {
                 audioSource.PlayOneShot(wrongAnswerAudioClip);
             }
             yield return new WaitForSeconds(1f);
-            resulText.text = "";
+            answerFeedbackText.text = "";
         }
     }
 

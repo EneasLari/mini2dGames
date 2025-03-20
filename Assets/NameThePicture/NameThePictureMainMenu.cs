@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 
-public class MainMenu : MonoBehaviour {
+public class NameThePictureMainMenu : MonoBehaviour {
     public Button startButton;
     public GameObject mainMenuCanvas;
     public GameObject mainGameCanvas;
