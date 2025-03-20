@@ -5,6 +5,18 @@ using TMPro;
 using System.Collections;
 
 public class NameThePicture : MonoBehaviour {
+
+    private static NameThePicture _instance;
+
+    public static NameThePicture Instance {
+        get {
+            if (_instance == null) {
+                _instance = FindFirstObjectByType<NameThePicture>(FindObjectsInactive.Include);
+            }
+            return _instance;
+        }
+    }
+
     public Image displayImage;
     public TMP_Text[] optionTexts;
     public TMP_Text resulText;
@@ -24,7 +36,7 @@ public class NameThePicture : MonoBehaviour {
     private AudioClip correctAudioClip;
     private List<int> usedIndices = new List<int>();
 
-    void Start() {
+    public void StartGame() {
         gameFinishedPanel.SetActive(false);
         gameFinishedTxt.text = "";
         replayButton.gameObject.SetActive(false);
