@@ -5,6 +5,7 @@ using UnityEngine;
 public class PictureEntry {
     public string name;
     public Sprite image;
+    public AudioClip audio; // Optional audio clip
 }
 
 [CreateAssetMenu(fileName = "PictureDatabase", menuName = "Game/PictureDatabase")]
