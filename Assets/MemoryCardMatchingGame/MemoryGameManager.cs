@@ -4,15 +4,21 @@ using System.Collections.Generic;
 using UnityEngine.UI;
 
 public class MemoryGameManager : MonoBehaviour {
-    public GameObject[] allGameObjectCards;      // Reference to all card GameObjects
-    private MemoryCard[] allCards;      // Reference to all card GameObjects
+    public Transform cardParent;  // The parent object for all cards
     public CardData cardData;          // Reference to the CardData ScriptableObject
+
+    public GameObject[] allGameObjectCards;      // Reference to all card GameObjects
+    private MemoryCard[] allCards;      // Reference to all card GameObjects   
     private MemoryCard firstFlippedCard = null;  // The first card the player flips
     private MemoryCard secondFlippedCard = null; // The second card the player flips
 
     private bool isFlipping = false;     // Prevent multiple flips at the same time
 
     void Start() {
+        allGameObjectCards = new GameObject[cardParent.childCount];
+        for (int i = 0; i < cardParent.childCount; i++) {
+            allGameObjectCards[i] = cardParent.GetChild(i).gameObject;
+        }
         // Initialize the game with shuffled cards
         AssignAllCards();
         ShuffleCards();
