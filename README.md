@@ -268,7 +268,7 @@ Image Games
 
 ---
 
-## **🔹 2️⃣ Memory Card Matching Game 🃏**
+## **🔹 2️⃣ Memory Card Matching Game 🃏** DONE
 
 🔸 **Concept:** Flip cards to find matching pairs.  
 🔸 **How to Implement:**

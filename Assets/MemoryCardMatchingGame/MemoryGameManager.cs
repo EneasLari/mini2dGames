@@ -4,20 +4,31 @@ using System.Collections.Generic;
 using UnityEngine.UI;
 
 public class MemoryGameManager : MonoBehaviour {
-    public Transform cardParent;  // The parent object for all cards
+    public Transform cardsParentTransform;  // The parent object for all cards
     public CardData cardData;          // Reference to the CardData ScriptableObject
 
-    public GameObject[] allGameObjectCards;      // Reference to all card GameObjects
+    private GameObject[] allGameObjectCards;      // Reference to all card GameObjects
     private MemoryCard[] allCards;      // Reference to all card GameObjects   
     private MemoryCard firstFlippedCard = null;  // The first card the player flips
     private MemoryCard secondFlippedCard = null; // The second card the player flips
 
-    private bool isFlipping = false;     // Prevent multiple flips at the same time
+    public bool isFlipping = false;     // Prevent multiple flips at the same time
+
+    private static MemoryGameManager _instance;
+
+    public static MemoryGameManager Instance {
+        get {
+            if (_instance == null) {
+                _instance = FindFirstObjectByType<MemoryGameManager>(FindObjectsInactive.Include);
+            }
+            return _instance;
+        }
+    }
 
     void Start() {
-        allGameObjectCards = new GameObject[cardParent.childCount];
-        for (int i = 0; i < cardParent.childCount; i++) {
-            allGameObjectCards[i] = cardParent.GetChild(i).gameObject;
+        allGameObjectCards = new GameObject[cardsParentTransform.childCount];
+        for (int i = 0; i < cardsParentTransform.childCount; i++) {
+            allGameObjectCards[i] = cardsParentTransform.GetChild(i).gameObject;
         }
         // Initialize the game with shuffled cards
         AssignAllCards();
@@ -38,6 +49,7 @@ public class MemoryGameManager : MonoBehaviour {
 
     public void OnCardFlipped(MemoryCard cardFlipped) {
         if (isFlipping) return;  // Prevent flipping cards while waiting for previous check
+
         if (firstFlippedCard == null) {
             // First card flipped
             firstFlippedCard = cardFlipped;
@@ -47,13 +59,12 @@ public class MemoryGameManager : MonoBehaviour {
         if (secondFlippedCard == null) {
             // Second card flipped
             secondFlippedCard = cardFlipped;
+            isFlipping = true;  // Set the flag to prevent further flipping
             StartCoroutine(CheckForMatch());
         }
     }
 
     IEnumerator CheckForMatch() {
-        isFlipping = true;
-
         // Wait for the flip animation to complete
         yield return new WaitForSeconds(firstFlippedCard.flipDuration);
 
@@ -63,18 +74,18 @@ public class MemoryGameManager : MonoBehaviour {
             Debug.Log("Match Found!");
             firstFlippedCard.DisableCard();
             secondFlippedCard.DisableCard();
-            firstFlippedCard = null;
-            secondFlippedCard = null;
-            isFlipping = false;
+            CheckForGameOver();  // Check if all cards are matched
         } else {
             // No match, flip back
             Debug.Log("No Match!");
-            firstFlippedCard.OnCardClicked();  // Flip it back
-            secondFlippedCard.OnCardClicked(); // Flip it back
-            firstFlippedCard = null;
-            secondFlippedCard = null;
-            isFlipping = false;
+            StartCoroutine(firstFlippedCard.FlipCard());
+            StartCoroutine(secondFlippedCard.FlipCard());
         }
+
+        // Reset the flipped cards and the flag
+        firstFlippedCard = null;
+        secondFlippedCard = null;
+        isFlipping = false;
     }
 
     // Shuffle cards randomly and assign each a front image
@@ -115,5 +126,13 @@ public class MemoryGameManager : MonoBehaviour {
         }
     }
 
-
+    void CheckForGameOver() {
+        foreach (var card in allCards) {
+            if (card.cardButton.interactable) {
+                return;  // If any card is still interactable, the game is not over
+            }
+        }
+        Debug.Log("Game Over! All cards matched.");
+        // Add your game over logic here (e.g., display a message, restart the game, etc.)
+    }
 }

@@ -264,9 +264,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e03496aeed7530345980733ac23dc53a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  cardParent: {fileID: 671899326}
+  cardsParentTransform: {fileID: 671899326}
   cardData: {fileID: 11400000, guid: 852e1276c6b8a044e943c37739289983, type: 2}
-  allGameObjectCards: []
+  isFlipping: 0
 --- !u!4 &141245389
 Transform:
   m_ObjectHideFlags: 0

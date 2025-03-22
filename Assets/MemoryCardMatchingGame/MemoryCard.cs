@@ -8,7 +8,6 @@ public class MemoryCard : MonoBehaviour {
     public GameObject backImageObject;   // assign in inspector
 
     private bool isFlipped = false;
-    private MemoryGameManager gameManager;  // Reference to the game manager
 
     private CardData cardData;  // Reference to the CardData ScriptableObject for this card
 
@@ -25,7 +24,6 @@ public class MemoryCard : MonoBehaviour {
 
     public void InitializeCard() {
         // Initialize front and back images
-        gameManager = FindFirstObjectByType<MemoryGameManager>();  // Find game manager
         frontImageObject.transform.rotation = Quaternion.Euler(0, 180, 0);  // Start with back showing
         frontImageObject.SetActive(false);
         backImageObject.SetActive(true);
@@ -39,16 +37,16 @@ public class MemoryCard : MonoBehaviour {
 
     // Call this on button click
     public void OnCardClicked() {
-        if (isFlipped) return; // Prevent double clicking on the same card
-
+        if (isFlipped || MemoryGameManager.Instance.isFlipping) return; // Prevent double clicking on the same card or flipping during another flip
+        print("Card clicked: " + cardIndex);
         // Flip the card
         StartCoroutine(FlipCard());
 
         // Notify the game manager that this card was flipped
-        gameManager.OnCardFlipped(this);
+        MemoryGameManager.Instance.OnCardFlipped(this);
     }
 
-    IEnumerator FlipCard() {
+    public IEnumerator FlipCard() {
         float time = 0f;
         Quaternion startRot = transform.rotation;
         Quaternion endRot = startRot * Quaternion.Euler(0, 180, 0);
@@ -72,9 +70,9 @@ public class MemoryCard : MonoBehaviour {
 
     // Disable the card (called after a match)
     public void DisableCard() {
-        frontImageObject.SetActive(false);
-        backImageObject.SetActive(false);
-        this.gameObject.SetActive(false);  // Disable the whole card
+        //frontImageObject.SetActive(false);
+        //backImageObject.SetActive(false);
+        //this.gameObject.SetActive(false);  // Disable the whole card
         cardButton.interactable = false;  // Disable button interaction
     }
 
