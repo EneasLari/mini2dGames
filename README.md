@@ -221,7 +221,7 @@ Word games
 
 ---
 
-## **🔹 🔟 Rhyme Game 🎶**
+## **🔹 🔟 Rhyme Game 🎶** DOING
 
 🔸 **Concept:** Find words that **rhyme** with a given word.  
 🔸 **How to Implement:**
