@@ -284,7 +284,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f194d07be0b553d41a726c8adb3e6a4c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  pieceSet: {fileID: 11400000, guid: 935a39f5d36d6f74fb8fb3ac9e9c3054, type: 2}
+  pieceSet: {fileID: 11400000, guid: 0abed591bff2bd542809e87a915598bf, type: 2}
   piecePrefab: {fileID: 6076511797999141404, guid: 161ffc61751f029418f30a16eb08f022, type: 3}
   parentCanvas: {fileID: 1070924974}
   winText: {fileID: 418846775}
