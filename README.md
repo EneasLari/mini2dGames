@@ -251,7 +251,7 @@ Word games
 
 ---
 
-Image Games
+## Image Games
 
 ---
 
@@ -281,7 +281,7 @@ Image Games
 
 ---
 
-## **🔹 3️⃣ Jigsaw Puzzle 🧩**
+## **🔹 3️⃣ Jigsaw Puzzle 🧩** DOING
 
 🔸 **Concept:** Drag and drop pieces to form a complete image.  
 🔸 **How to Implement:**
