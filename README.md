@@ -281,13 +281,13 @@ Word games
 
 ---
 
-## **🔹 3️⃣ Jigsaw Puzzle 🧩** DOING
+## **🔹 3️⃣ Jigsaw Puzzle 🧩** DONE
 
 🔸 **Concept:** Drag and drop pieces to form a complete image.  
 🔸 **How to Implement:**
 
 - Load a **complete image** and break it into pieces.
-- Shuffle pieces randomly on the screen.
+- Shuffle pieces randomly on the screen.(SUFFLE THEM RANDOMLY ON GRID)
 - Player **drags & drops** pieces into correct positions.
 - **Win:** All pieces correctly placed.
   🔸 **Learning:** Drag & drop mechanics, snapping, and image slicing.
