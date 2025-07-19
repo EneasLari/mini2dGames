@@ -5,28 +5,30 @@ using System.Collections;
 using System.Collections.Generic;
 
 public class JigsawManager : MonoBehaviour {
-    public JigsawPieceSet pieceSet;        // ScriptableObject with Sprite[] pieces and int columns
-    public GameObject piecePrefab;         // Prefab with JigsawPiece component, UI Image, RectTransform
-    public Transform puzzleBoard;          // Parent object with GridLayoutGroup for grid arrangement
+    public JigsawPieceSet pieceSet;
+    public GameObject piecePrefab;
+    public Transform puzzleBoard;      // Should have a GridLayoutGroup
     public TextMeshProUGUI winText;
 
+    public AudioClip clickSound;
+    public AudioClip correctSound;
+    public AudioSource audioSource; // Assign via inspector or create at runtime
+
+
+    [HideInInspector] public List<Vector2> gridPositions = new List<Vector2>();
+
     private JigsawPiece[] pieces;
-    private List<Vector2> gridPositions = new List<Vector2>();
     private bool puzzleStarted = false;
     private GridLayoutGroup gridLayout;
 
     void Start() {
         winText.text = "";
 
-        // Get and set up the GridLayoutGroup
         gridLayout = puzzleBoard.GetComponent<GridLayoutGroup>();
         RectTransform pieceRect = piecePrefab.GetComponent<RectTransform>();
 
-        // 1. Set grid cell size to match the prefab
         if (gridLayout != null && pieceRect != null) {
             gridLayout.cellSize = new Vector2(pieceRect.rect.width, pieceRect.rect.height);
-
-            // 2. Set grid constraint to use the column count from the ScriptableObject
             gridLayout.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
             gridLayout.constraintCount = pieceSet.columns;
         } else {
@@ -34,55 +36,75 @@ public class JigsawManager : MonoBehaviour {
             return;
         }
 
-        // 3. Calculate rows just for logic (not used by GridLayoutGroup)
         int totalPieces = pieceSet.pieces.Length;
-        int columns = pieceSet.columns;
-        int rows = Mathf.CeilToInt((float)totalPieces / columns);
 
-        // 4. Instantiate all pieces in the grid (they will appear solved)
         pieces = new JigsawPiece[totalPieces];
         for (int i = 0; i < totalPieces; i++) {
             GameObject piece = Instantiate(piecePrefab, puzzleBoard);
             piece.GetComponent<Image>().sprite = pieceSet.pieces[i];
             pieces[i] = piece.GetComponent<JigsawPiece>();
+            pieces[i].manager = this; // Reference to the manager for position lookup
+            pieces[i].correctGridIndex = i; // This is where the piece belongs (solved)
+            pieces[i].currentGridIndex = i; // This is where it is now (will shuffle later)
         }
 
-        // 5. Wait a frame for layout to position everything
         StartCoroutine(SetupAndShuffle());
     }
 
     IEnumerator SetupAndShuffle() {
-        yield return null; // Wait for Unity's layout system to arrange the grid
+        yield return null; // Wait for layout system
 
-        // 6. Record all correct grid positions
         gridPositions.Clear();
-        foreach (var piece in pieces) {
-            RectTransform rect = piece.GetComponent<RectTransform>();
-            piece.correctPosition = rect.anchoredPosition;
-            gridPositions.Add(rect.anchoredPosition);
-        }
+        foreach (var piece in pieces)
+            gridPositions.Add(piece.GetComponent<RectTransform>().anchoredPosition);
 
-        // 7. Show completed puzzle for 3 seconds
         yield return new WaitForSeconds(3f);
 
-        // 8. Disable GridLayoutGroup so you can move pieces freely
         if (gridLayout != null)
             gridLayout.enabled = false;
 
-        // 9. Shuffle the positions (randomize where each piece is)
-        List<Vector2> shuffledPositions = new List<Vector2>(gridPositions);
-        for (int i = 0; i < shuffledPositions.Count; i++) {
-            Vector2 temp = shuffledPositions[i];
-            int randomIndex = Random.Range(i, shuffledPositions.Count);
-            shuffledPositions[i] = shuffledPositions[randomIndex];
-            shuffledPositions[randomIndex] = temp;
-        }
         for (int i = 0; i < pieces.Length; i++) {
-            pieces[i].GetComponent<RectTransform>().anchoredPosition = shuffledPositions[i];
+            pieces[i].transform.localScale = pieces[i].smallScale;
+            pieces[i].isLocked = false;
+        }
+
+        // Shuffle grid indices
+        List<int> shuffledIndices = new List<int>();
+        for (int i = 0; i < pieces.Length; i++) shuffledIndices.Add(i);
+
+        do {
+            // Fisher-Yates shuffle
+            for (int i = 0; i < shuffledIndices.Count; i++) {
+                int temp = shuffledIndices[i];
+                int randomIndex = Random.Range(i, shuffledIndices.Count);
+                shuffledIndices[i] = shuffledIndices[randomIndex];
+                shuffledIndices[randomIndex] = temp;
+            }
+        } while (HasAnyCorrectlyPlaced(shuffledIndices));
+        // Apply shuffled indices and set positions
+        for (int i = 0; i < pieces.Length; i++) {
+            pieces[i].currentGridIndex = shuffledIndices[i];
+            pieces[i].GetComponent<RectTransform>().anchoredPosition = gridPositions[shuffledIndices[i]];
         }
 
         puzzleStarted = true;
     }
+
+    bool HasAnyCorrectlyPlaced(List<int> indices) {
+        for (int i = 0; i < indices.Count; i++)
+            if (indices[i] == i)
+                return true;
+        return false;
+    }
+
+    public void PlayClickSound() {
+        if (audioSource && clickSound) audioSource.PlayOneShot(clickSound);
+    }
+
+    public void PlayCorrectSound() {
+        if (audioSource && correctSound) audioSource.PlayOneShot(correctSound);
+    }
+
 
     void Update() {
         if (!puzzleStarted) return;
