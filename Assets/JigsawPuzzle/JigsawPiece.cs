@@ -3,7 +3,7 @@ using UnityEngine.EventSystems;
 using System.Collections.Generic;
 using System.Collections;
 
-public class JigsawPiece : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler, IPointerDownHandler {
+public class JigsawPiece : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler, IPointerDownHandler , IPointerUpHandler{
     [HideInInspector] public int correctGridIndex;
     [HideInInspector] public int currentGridIndex;
     [HideInInspector] public JigsawManager manager;
@@ -11,6 +11,7 @@ public class JigsawPiece : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
     public readonly Vector3 smallScale = Vector3.one * 0.9f;
     public readonly Vector3 fullScale = Vector3.one;
     public bool isLocked = false;
+    public bool draggingStarted = false;
 
 
     private RectTransform rect;
@@ -27,9 +28,13 @@ public class JigsawPiece : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
         transform.localScale = fullScale; // Show at full size during drag
         manager.PlayClickSound();
     }
-
+    public void OnPointerUp(PointerEventData eventData) {
+        if (isLocked || draggingStarted) return;
+        transform.localScale = smallScale;
+    }
     public void OnBeginDrag(PointerEventData eventData) {
         if (isLocked) return;
+        draggingStarted = true;
         transform.SetAsLastSibling();
     }
 
@@ -41,6 +46,7 @@ public class JigsawPiece : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
 
     public void OnEndDrag(PointerEventData eventData) {
         if (isLocked) return;
+        draggingStarted = false;
         var pointerResults = new List<RaycastResult>();
         EventSystem.current.RaycastAll(eventData, pointerResults);
 
@@ -102,4 +108,6 @@ public class JigsawPiece : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
         }
         transform.localScale = endScale;
     }
+
+
 }
