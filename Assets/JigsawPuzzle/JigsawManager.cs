@@ -15,9 +15,10 @@ public class JigsawManager : MonoBehaviour {
     public AudioSource audioSource;
 
 
-    [HideInInspector] public List<Vector2> gridPositions = new List<Vector2>();
-
-    private JigsawPiece[] pieces;
+    [HideInInspector] 
+    public List<Vector2> gridPositions = new List<Vector2>();
+    [HideInInspector]
+    public JigsawPiece[] pieces;
     private bool puzzleStarted = false;
     private GridLayoutGroup gridLayout;
 
