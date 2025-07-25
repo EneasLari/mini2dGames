@@ -4,51 +4,61 @@ using UnityEngine.UI;
 using UnityEngine.EventSystems;
 
 public class LetterGridLetterTile : MonoBehaviour, IPointerDownHandler, IPointerEnterHandler, ICanvasRaycastFilter {
-    private char letter;
+    private char tileLetter;
     public bool isSelected = false;
     private Vector2Int tilePosition;
+
     [SerializeField] private float smallerTriggerAreaPercentage = 0.7f;
-    private float triggerAreaPercentage; // 70% of tile area
+    private float currentTriggerAreaPercentage;
 
     public enum TileType { Normal, DoubleLetter, TripleWord }
     public TileType tileType = TileType.Normal;
-    [HideInInspector]public bool IsPartOfWord = false;
+
+    [HideInInspector] public bool IsPartOfWord = false;
 
     void Start() {
-        triggerAreaPercentage = smallerTriggerAreaPercentage;
+        currentTriggerAreaPercentage = smallerTriggerAreaPercentage;
     }
 
     public void SetLetter(char newLetter) {
-        letter = newLetter;
-        GetComponentInChildren<TMP_Text>().text = letter.ToString();
+        tileLetter = newLetter;
+        GetComponentInChildren<TMP_Text>().text = tileLetter.ToString();
     }
 
     public void ResetTriggerAreaPercentage() {
-        triggerAreaPercentage = 1;
+        currentTriggerAreaPercentage = 1f;
     }
 
     public void SmallerTriggerAreaPercentage() {
-        triggerAreaPercentage = smallerTriggerAreaPercentage;
+        currentTriggerAreaPercentage = smallerTriggerAreaPercentage;
     }
 
-    // Handle tile clicks
     public void OnPointerDown(PointerEventData eventData) {
-        if (LetterGridWordManager.instance.isFlashing) return;
+        if (LetterGridWordManager.instance.IsShowingFeedback) return;
 
-        // Only start new selection if not already selecting
-        if (!LetterGridWordManager.instance.isSelecting) {
+        if (!LetterGridWordManager.instance.IsUserSelecting) {
             LetterGridWordManager.instance.StartSelection(this);
         }
     }
 
-    // Handle drag enter
     public void OnPointerEnter(PointerEventData eventData) {
-        // Delegate to manager
-        LetterGridWordManager.instance.OnPointerEnter(this);
+        LetterGridWordManager.instance.TrySelectHoveredTile(this);
     }
 
     public void SelectTile() {
         isSelected = true;
+    }
+
+    public void Deselect() {
+        isSelected = false;
+    }
+
+    public void SetTilePos(int x, int y) {
+        tilePosition = new Vector2Int(x, y);
+    }
+
+    public Vector2Int GetTilePos() {
+        return tilePosition;
     }
 
     public void SetCurrentColor(Color newColor) {
@@ -58,47 +68,28 @@ public class LetterGridLetterTile : MonoBehaviour, IPointerDownHandler, IPointer
     public Color GetCurrentColor() {
         return GetComponent<Image>().color;
     }
-    public void SetTilePos(int x, int y) {
-        tilePosition.x = x;
-        tilePosition.y = y;
-    }
 
-    public Vector2Int GetTilePos() {
-        return tilePosition;
-    }
-
-    public void Deselect() {
-        isSelected = false;     
-    }
     public bool IsRaycastLocationValid(Vector2 screenPoint, Camera eventCamera) {
-        // Convert screen point to local coordinates
         RectTransform rectTransform = GetComponent<RectTransform>();
-        Vector2 localPoint;
         RectTransformUtility.ScreenPointToLocalPointInRectangle(
             rectTransform,
             screenPoint,
             eventCamera,
-            out localPoint
+            out Vector2 localPoint
         );
 
-        // Calculate the effective trigger area
         Vector2 pivot = rectTransform.pivot;
         Rect rect = rectTransform.rect;
 
-        float effectiveWidth = rect.width * triggerAreaPercentage;
-        float effectiveHeight = rect.height * triggerAreaPercentage;
+        float effectiveWidth = rect.width * currentTriggerAreaPercentage;
+        float effectiveHeight = rect.height * currentTriggerAreaPercentage;
 
-        // Create a smaller rectangle centered in the tile
         float xMin = -effectiveWidth / 2f;
         float xMax = effectiveWidth / 2f;
         float yMin = -effectiveHeight / 2f;
         float yMax = effectiveHeight / 2f;
 
-        // Check if point is within the effective area
-        return localPoint.x >= xMin &&
-               localPoint.x <= xMax &&
-               localPoint.y >= yMin &&
-               localPoint.y <= yMax;
+        return localPoint.x >= xMin && localPoint.x <= xMax &&
+               localPoint.y >= yMin && localPoint.y <= yMax;
     }
-
 }

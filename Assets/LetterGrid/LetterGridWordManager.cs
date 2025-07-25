@@ -1,7 +1,6 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 using System.Collections.Generic;
-using System.IO;
 using TMPro;
 using System.Collections;
 using static LetterGridLetterTile;
@@ -9,31 +8,38 @@ using UnityEngine.EventSystems;
 
 public class LetterGridWordManager : MonoBehaviour {
     public static LetterGridWordManager instance;
-    public Canvas GridCanvas;
-    public TMP_Text selectedWordText;
-    public TMP_Text scoreText;
+
+    [Header("🔷 UI References")]
+    public Canvas gridCanvas;
+    public TMP_Text wordDisplayText;
+    public TMP_Text scoreDisplayText;
     public Button resetButton;
     public Button undoButton;
 
-    // Add at top of LetterGridManager.cs
-    [Header("Debug Settings")]
-    public bool highlightWordTiles = true; // Toggle in Unity Inspector
-    public Color wordTileColor = new Color(0.5f, 0f, 0.8f, 1f); // Purple color
+    [Header("🛠 Gameplay Settings")]
+    public bool highlightWordTiles = true;
+    [Tooltip("Color for word tiles in debug mode")]
+    public Color wordTileColor = new Color(0.5f, 0f, 0.8f, 1f);
 
-
-    [Header("Colors")]
+    [Header("🎨 Tile Colors")]
     public Color baseColor = Color.white;
     public Color correctColor = Color.green;
     public Color selectedColor = Color.yellow;
 
-    private int score = 0;
+    [Header("📈 Scoring & Word State")]
     public HashSet<string> validWords = new HashSet<string>();
-    private string currentWord = "";
-    private List<LetterGridLetterTile> currentSelectedLetterTiles = new List<LetterGridLetterTile>();
-    private HashSet<string> submittedWords = new HashSet<string>();
-    public bool isFlashing = false;
-    public bool isSelecting = false;
-    private Vector2Int selectionDirection;
+    private HashSet<string> foundWords = new HashSet<string>();
+    private List<LetterGridLetterTile> selectedTiles = new List<LetterGridLetterTile>();
+
+    [Header("🔒 Runtime State")]
+    private int score = 0;
+    private string activeWord = "";
+    private bool isShowingFeedback = false;
+    private bool isUserSelecting = false;
+    private Vector2Int wordDirection;
+
+    public bool IsShowingFeedback => isShowingFeedback;
+    public bool IsUserSelecting => isUserSelecting;
 
     private void Awake() {
         instance = this;
@@ -41,81 +47,154 @@ public class LetterGridWordManager : MonoBehaviour {
 
     private void Start() {
         LoadDictionary();
-        resetButton.onClick.AddListener(ResetSelectedTiles);
+        resetButton.onClick.AddListener(ClearTileSelection);
+        // undoButton.onClick.AddListener(UndoLastTile);
     }
 
     private void Update() {
-        if (isFlashing) return;
+        if (isShowingFeedback) return;
 
-        // Handle mouse/touch release to complete selection
         bool mouseReleased = Input.GetMouseButtonUp(0);
         bool touchReleased = (Input.touchCount > 0 && Input.GetTouch(0).phase == TouchPhase.Ended);
 
-        if (isSelecting && (mouseReleased || touchReleased)) {
-            if (currentWord.Length >= 3) {
-                ValidateWord();
-            } else {
-                ResetSelectedTiles();
+        if (isUserSelecting && (mouseReleased || touchReleased)) {
+            if (activeWord.Length >= 3) ValidateSelectedWord();
+            else ClearTileSelection();
+            isUserSelecting = false;
+        }
+
+        if (isUserSelecting && Input.touchCount > 0) {
+            Touch touch = Input.GetTouch(0);
+            if (touch.phase == TouchPhase.Moved || touch.phase == TouchPhase.Stationary) {
+                RaycastTouchToTile(touch.position);
             }
-            isSelecting = false;
+        }
+
+        if (isUserSelecting && Input.GetMouseButton(0)) {
+            RaycastTouchToTile(Input.mousePosition);
+        }
+    }
+
+    private void RaycastTouchToTile(Vector2 screenPosition) {
+        PointerEventData pointerData = new PointerEventData(EventSystem.current) {
+            position = screenPosition
+        };
+
+        List<RaycastResult> results = new List<RaycastResult>();
+        EventSystem.current.RaycastAll(pointerData, results);
+
+        foreach (var result in results) {
+            LetterGridLetterTile tile = result.gameObject.GetComponent<LetterGridLetterTile>();
+            if (tile != null && !tile.isSelected) {
+                TrySelectHoveredTile(tile);
+                break;
+            }
         }
     }
 
     public void StartSelection(LetterGridLetterTile firstTile) {
-        if (isFlashing) return;
-        ResetSelectedTiles();
-        isSelecting = true;
-        AddLetter(firstTile);
+        if (isShowingFeedback) return;
+        ClearTileSelection();
+        isUserSelecting = true;
+        AddTileToWord(firstTile);
     }
 
+    public void AddTileToWord(LetterGridLetterTile tile) {
+        if (selectedTiles.Contains(tile)) return;
 
-    public void AddLetter(LetterGridLetterTile letterTile) {
-        // Prevent duplicate selection
-        if (currentSelectedLetterTiles.Contains(letterTile)) return;
+        activeWord += tile.GetComponentInChildren<TMP_Text>().text;
+        selectedTiles.Add(tile);
+        wordDisplayText.text = "Word: " + activeWord;
 
-        currentWord += letterTile.GetComponentInChildren<TMP_Text>().text;
-        currentSelectedLetterTiles.Add(letterTile);
-        selectedWordText.text = "Word: " + currentWord;
+        tile.SelectTile();
+        tile.SetCurrentColor(selectedColor);
 
-        // Update tile visual state
-        letterTile.SelectTile();
-        letterTile.SetCurrentColor(selectedColor);
-
-        if (currentSelectedLetterTiles.Count == 2) {
-            Vector2Int firstPos = currentSelectedLetterTiles[0].GetTilePos();
-            Vector2Int secondPos = currentSelectedLetterTiles[1].GetTilePos();
-            selectionDirection = secondPos - firstPos;
-            //Now that we have the direction we can set the trigger area of every tile full
+        if (selectedTiles.Count == 2) {
+            Vector2Int firstPos = selectedTiles[0].GetTilePos();
+            Vector2Int secondPos = selectedTiles[1].GetTilePos();
+            wordDirection = secondPos - firstPos;
             LetterGridManager.instance.ResetTilesTriggerArea();
         }
-
     }
 
+    public void TrySelectHoveredTile(LetterGridLetterTile tile) {
+        if ((Input.GetMouseButton(0) || Input.touchCount > 0) && isUserSelecting && !isShowingFeedback) {
+            if (selectedTiles.Count > 1 && tile == selectedTiles[^2]) {
+                UndoLastTile();
+                return;
+            }
 
-    public void ValidateWord() {
-        if (isFlashing) return;
+            if (!tile.isSelected && IsTileSelectable(tile)) {
+                AddTileToWord(tile);
+            }
+        }
+    }
 
-        bool isValid = validWords.Contains(currentWord) && !submittedWords.Contains(currentWord);
+    public bool IsTileSelectable(LetterGridLetterTile tile) {
+        if (selectedTiles.Count == 0) return true;
+
+        Vector2Int newPos = tile.GetTilePos();
+        Vector2Int lastPos = selectedTiles[^1].GetTilePos();
+
+        if (selectedTiles.Count > 1) {
+            var secondLastTile = selectedTiles[^2];
+            if (secondLastTile == tile) return true;
+        }
+
+        if (selectedTiles.Count == 1) {
+            int dx = Mathf.Abs(newPos.x - lastPos.x);
+            int dy = Mathf.Abs(newPos.y - lastPos.y);
+            return (dx <= 1 && dy <= 1) && !(dx == 0 && dy == 0);
+        }
+
+        return newPos == lastPos + wordDirection;
+    }
+
+    private void UndoLastTile() {
+        if (selectedTiles.Count < 2) return;
+
+        LetterGridLetterTile lastTile = selectedTiles[^1];
+        selectedTiles.RemoveAt(selectedTiles.Count - 1);
+        activeWord = activeWord.Substring(0, activeWord.Length - 1);
+        wordDisplayText.text = "Word: " + activeWord;
+
+        lastTile.Deselect();
+        lastTile.SetCurrentColor(lastTile.IsPartOfWord ? correctColor : baseColor);
+
+        if (selectedTiles.Count == 1) {
+            ResetDirection();
+        }
+    }
+
+    private void ResetDirection() {
+        wordDirection = Vector2Int.zero;
+        LetterGridManager.instance.SmallerTilesTriggerArea();
+    }
+
+    public void ValidateSelectedWord() {
+        if (isShowingFeedback) return;
+
+        bool isValid = validWords.Contains(activeWord) && !foundWords.Contains(activeWord);
         Color flashColor = isValid ? Color.green : Color.red;
 
         if (isValid) {
-            int wordScore = currentWord.Length * 10;
-            foreach (var tile in currentSelectedLetterTiles) {
+            int wordScore = activeWord.Length * 10;
+            foreach (var tile in selectedTiles) {
                 tile.IsPartOfWord = true;
                 if (tile.tileType == TileType.DoubleLetter) wordScore += 5;
                 else if (tile.tileType == TileType.TripleWord) wordScore *= 3;
             }
             score += wordScore;
-            scoreText.text = "Score: " + score;
-            submittedWords.Add(currentWord);
+            scoreDisplayText.text = "Score: " + score;
+            foundWords.Add(activeWord);
         }
 
-        StartCoroutine(FlashTilesAndReset(flashColor,isValid));
+        StartCoroutine(FlashTilesAndReset(flashColor, isValid));
     }
 
-    IEnumerator FlashTilesAndReset(Color flashColor,bool isValid) {
-        isFlashing = true;
-        List<LetterGridLetterTile> tilesToFlash = new List<LetterGridLetterTile>(currentSelectedLetterTiles);
+    IEnumerator FlashTilesAndReset(Color flashColor, bool isValid) {
+        isShowingFeedback = true;
+        List<LetterGridLetterTile> tilesToFlash = new List<LetterGridLetterTile>(selectedTiles);
 
         foreach (var tile in tilesToFlash) {
             Image img = tile.GetComponent<Image>();
@@ -125,34 +204,34 @@ public class LetterGridWordManager : MonoBehaviour {
             img.color = original;
         }
 
-        ResetSelection();
-        foreach (var tile in currentSelectedLetterTiles) {
+        ClearActiveWord();
+        foreach (var tile in selectedTiles) {
             tile.Deselect();
             tile.SetCurrentColor((isValid || tile.IsPartOfWord) ? correctColor : baseColor);
         }
-        currentSelectedLetterTiles.Clear();
-        isFlashing = false;
+        selectedTiles.Clear();
+        isShowingFeedback = false;
     }
 
-    public void ResetSelection() {
-        currentWord = "";
-        selectedWordText.text = "Word: ";
-    }
+    public void ClearTileSelection() {
+        if (isShowingFeedback) return;
 
-    public void ResetSelectedTiles() {
-        if (isFlashing) return;
-
-        ResetSelection();
-        foreach (var item in currentSelectedLetterTiles) {
-            item.Deselect();
-            item.SetCurrentColor(baseColor);
+        ClearActiveWord();
+        foreach (var tile in selectedTiles) {
+            tile.Deselect();
+            tile.SetCurrentColor(baseColor);
         }
-        currentSelectedLetterTiles.Clear();
-        isSelecting = false;
+        selectedTiles.Clear();
+        isUserSelecting = false;
         ResetDirection();
     }
 
-    void LoadDictionary() {
+    public void ClearActiveWord() {
+        activeWord = "";
+        wordDisplayText.text = "Word: ";
+    }
+
+    private void LoadDictionary() {
         TextAsset wordFile = Resources.Load<TextAsset>("wordlist");
         if (wordFile == null) {
             Debug.LogError("wordlist.txt not found in Resources folder!");
@@ -168,74 +247,7 @@ public class LetterGridWordManager : MonoBehaviour {
                 filteredWords.Add(cleanWord);
             }
         }
+
         validWords = filteredWords;
-    }
-
-    public bool CanSelectTile(LetterGridLetterTile tile) {
-        if (currentSelectedLetterTiles.Count == 0) return true;
-
-        LetterGridLetterTile lastTile = currentSelectedLetterTiles[^1];
-        Vector2Int lastPos = lastTile.GetTilePos();
-        Vector2Int newPos = tile.GetTilePos();
-
-        // Allow backtracking to previous tile
-        if (currentSelectedLetterTiles.Count > 1) {
-            LetterGridLetterTile secondLastTile = currentSelectedLetterTiles[^2];
-            if (secondLastTile == tile) {
-                return true; // Allow backtracking
-            }
-        }
-
-        // For second tile: allow any adjacent tile
-        if (currentSelectedLetterTiles.Count == 1) {
-            int dx = Mathf.Abs(newPos.x - lastPos.x);
-            int dy = Mathf.Abs(newPos.y - lastPos.y);
-            return (dx <= 1 && dy <= 1) && !(dx == 0 && dy == 0);
-        }
-
-        // For subsequent tiles: must follow initial direction
-        Vector2Int requiredPos = lastPos + selectionDirection;
-        return newPos == requiredPos;
-    }
-
-    public void OnPointerEnter(LetterGridLetterTile tile) {
-        if (Input.GetMouseButton(0) && isSelecting && !isFlashing) {
-            // Check for backtracking
-            if (currentSelectedLetterTiles.Count > 1 &&
-                tile == currentSelectedLetterTiles[^2]) {
-                BacktrackSelection();
-                return;
-            }
-
-            // Original selection logic
-            if (!tile.isSelected && CanSelectTile(tile)) {
-                AddLetter(tile);
-            }
-        }
-    }
-
-    private void BacktrackSelection() {
-        if (currentSelectedLetterTiles.Count < 2) return;
-
-        // Remove last tile
-        LetterGridLetterTile lastTile = currentSelectedLetterTiles[^1];
-        currentSelectedLetterTiles.RemoveAt(currentSelectedLetterTiles.Count - 1);
-        currentWord = currentWord.Substring(0, currentWord.Length - 1);
-        selectedWordText.text = "Word: " + currentWord;
-
-        // Reset last tile
-        lastTile.Deselect();
-        lastTile.SetCurrentColor(lastTile.IsPartOfWord ? correctColor : baseColor);
-
-        // Update direction if needed
-        if (currentSelectedLetterTiles.Count == 1) {
-            ResetDirection();
-        }
-    }
-
-    private void ResetDirection() {
-        selectionDirection = Vector2Int.zero;
-        //now that we reset the direction we want smaller trigger area
-        LetterGridManager.instance.SmallerTilesTriggerArea();
     }
 }
