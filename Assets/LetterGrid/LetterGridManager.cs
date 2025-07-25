@@ -5,8 +5,6 @@ using UnityEngine.UI;
 
 public class LetterGridManager : MonoBehaviour {
 
-
-
     // Add to LetterGridManager
     [Header("Difficulty Settings")]
     public int minWordLength = 3;

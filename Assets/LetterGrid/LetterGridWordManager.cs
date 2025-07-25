@@ -178,6 +178,14 @@ public class LetterGridWordManager : MonoBehaviour {
         Vector2Int lastPos = lastTile.GetTilePos();
         Vector2Int newPos = tile.GetTilePos();
 
+        // Allow backtracking to previous tile
+        if (currentSelectedLetterTiles.Count > 1) {
+            LetterGridLetterTile secondLastTile = currentSelectedLetterTiles[^2];
+            if (secondLastTile == tile) {
+                return true; // Allow backtracking
+            }
+        }
+
         // For second tile: allow any adjacent tile
         if (currentSelectedLetterTiles.Count == 1) {
             int dx = Mathf.Abs(newPos.x - lastPos.x);
@@ -188,6 +196,41 @@ public class LetterGridWordManager : MonoBehaviour {
         // For subsequent tiles: must follow initial direction
         Vector2Int requiredPos = lastPos + selectionDirection;
         return newPos == requiredPos;
+    }
+
+    public void OnPointerEnter(LetterGridLetterTile tile) {
+        if (Input.GetMouseButton(0) && isSelecting && !isFlashing) {
+            // Check for backtracking
+            if (currentSelectedLetterTiles.Count > 1 &&
+                tile == currentSelectedLetterTiles[^2]) {
+                BacktrackSelection();
+                return;
+            }
+
+            // Original selection logic
+            if (!tile.isSelected && CanSelectTile(tile)) {
+                AddLetter(tile);
+            }
+        }
+    }
+
+    private void BacktrackSelection() {
+        if (currentSelectedLetterTiles.Count < 2) return;
+
+        // Remove last tile
+        LetterGridLetterTile lastTile = currentSelectedLetterTiles[^1];
+        currentSelectedLetterTiles.RemoveAt(currentSelectedLetterTiles.Count - 1);
+        currentWord = currentWord.Substring(0, currentWord.Length - 1);
+        selectedWordText.text = "Word: " + currentWord;
+
+        // Reset last tile
+        lastTile.Deselect();
+        lastTile.SetCurrentColor(lastTile.IsPartOfWord ? correctColor : baseColor);
+
+        // Update direction if needed
+        if (currentSelectedLetterTiles.Count == 1) {
+            ResetDirection();
+        }
     }
 
     private void ResetDirection() {

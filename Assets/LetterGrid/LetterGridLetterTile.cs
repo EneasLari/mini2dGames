@@ -5,7 +5,7 @@ using UnityEngine.EventSystems;
 
 public class LetterGridLetterTile : MonoBehaviour, IPointerDownHandler, IPointerEnterHandler, ICanvasRaycastFilter {
     private char letter;
-    private bool isSelected = false;
+    public bool isSelected = false;
     private Vector2Int tilePosition;
     [SerializeField] private float smallerTriggerAreaPercentage = 0.7f;
     private float triggerAreaPercentage; // 70% of tile area
@@ -43,12 +43,8 @@ public class LetterGridLetterTile : MonoBehaviour, IPointerDownHandler, IPointer
 
     // Handle drag enter
     public void OnPointerEnter(PointerEventData eventData) {
-        if (Input.GetMouseButton(0) &&
-            LetterGridWordManager.instance.isSelecting &&
-            !isSelected &&
-            LetterGridWordManager.instance.CanSelectTile(this)) {
-            LetterGridWordManager.instance.AddLetter(this);
-        }
+        // Delegate to manager
+        LetterGridWordManager.instance.OnPointerEnter(this);
     }
 
     public void SelectTile() {
