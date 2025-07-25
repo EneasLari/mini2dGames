@@ -15,6 +15,17 @@ public class LetterGridWordManager : MonoBehaviour {
     public Button resetButton;
     public Button undoButton;
 
+    // Add at top of LetterGridManager.cs
+    [Header("Debug Settings")]
+    public bool highlightWordTiles = true; // Toggle in Unity Inspector
+    public Color wordTileColor = new Color(0.5f, 0f, 0.8f, 1f); // Purple color
+
+
+    [Header("Colors")]
+    public Color baseColor = Color.white;
+    public Color correctColor = Color.green;
+    public Color selectedColor = Color.yellow;
+
     private int score = 0;
     public HashSet<string> validWords = new HashSet<string>();
     private string currentWord = "";
@@ -22,6 +33,7 @@ public class LetterGridWordManager : MonoBehaviour {
     private HashSet<string> submittedWords = new HashSet<string>();
     public bool isFlashing = false;
     public bool isSelecting = false;
+    private Vector2Int selectionDirection;
 
     private void Awake() {
         instance = this;
@@ -30,7 +42,6 @@ public class LetterGridWordManager : MonoBehaviour {
     private void Start() {
         LoadDictionary();
         resetButton.onClick.AddListener(ResetSelectedTiles);
-        undoButton.onClick.AddListener(UndoLastSelection);
     }
 
     private void Update() {
@@ -52,8 +63,6 @@ public class LetterGridWordManager : MonoBehaviour {
 
     public void StartSelection(LetterGridLetterTile firstTile) {
         if (isFlashing) return;
-
-        print("Starting new selection");
         ResetSelectedTiles();
         isSelecting = true;
         AddLetter(firstTile);
@@ -70,16 +79,16 @@ public class LetterGridWordManager : MonoBehaviour {
 
         // Update tile visual state
         letterTile.SelectTile();
-    }
+        letterTile.SetCurrentColor(selectedColor);
 
-    public void UndoLastSelection() {
-        if (isFlashing || currentSelectedLetterTiles.Count == 0) return;
+        if (currentSelectedLetterTiles.Count == 2) {
+            Vector2Int firstPos = currentSelectedLetterTiles[0].GetTilePos();
+            Vector2Int secondPos = currentSelectedLetterTiles[1].GetTilePos();
+            selectionDirection = secondPos - firstPos;
+            //Now that we have the direction we can set the trigger area of every tile full
+            LetterGridManager.instance.ResetTilesTriggerArea();
+        }
 
-        LetterGridLetterTile lastTile = currentSelectedLetterTiles[^1];
-        currentSelectedLetterTiles.RemoveAt(currentSelectedLetterTiles.Count - 1);
-        currentWord = currentWord[..^1]; // Remove last character
-        selectedWordText.text = "Word: " + currentWord;
-        lastTile.Deselect();
     }
 
 
@@ -92,6 +101,7 @@ public class LetterGridWordManager : MonoBehaviour {
         if (isValid) {
             int wordScore = currentWord.Length * 10;
             foreach (var tile in currentSelectedLetterTiles) {
+                tile.IsPartOfWord = true;
                 if (tile.tileType == TileType.DoubleLetter) wordScore += 5;
                 else if (tile.tileType == TileType.TripleWord) wordScore *= 3;
             }
@@ -100,10 +110,10 @@ public class LetterGridWordManager : MonoBehaviour {
             submittedWords.Add(currentWord);
         }
 
-        StartCoroutine(FlashTilesAndReset(flashColor));
+        StartCoroutine(FlashTilesAndReset(flashColor,isValid));
     }
 
-    IEnumerator FlashTilesAndReset(Color flashColor) {
+    IEnumerator FlashTilesAndReset(Color flashColor,bool isValid) {
         isFlashing = true;
         List<LetterGridLetterTile> tilesToFlash = new List<LetterGridLetterTile>(currentSelectedLetterTiles);
 
@@ -118,6 +128,7 @@ public class LetterGridWordManager : MonoBehaviour {
         ResetSelection();
         foreach (var tile in currentSelectedLetterTiles) {
             tile.Deselect();
+            tile.SetCurrentColor((isValid || tile.IsPartOfWord) ? correctColor : baseColor);
         }
         currentSelectedLetterTiles.Clear();
         isFlashing = false;
@@ -134,9 +145,11 @@ public class LetterGridWordManager : MonoBehaviour {
         ResetSelection();
         foreach (var item in currentSelectedLetterTiles) {
             item.Deselect();
+            item.SetCurrentColor(baseColor);
         }
         currentSelectedLetterTiles.Clear();
         isSelecting = false;
+        ResetDirection();
     }
 
     void LoadDictionary() {
@@ -165,9 +178,21 @@ public class LetterGridWordManager : MonoBehaviour {
         Vector2Int lastPos = lastTile.GetTilePos();
         Vector2Int newPos = tile.GetTilePos();
 
-        int dx = Mathf.Abs(newPos.x - lastPos.x);
-        int dy = Mathf.Abs(newPos.y - lastPos.y);
+        // For second tile: allow any adjacent tile
+        if (currentSelectedLetterTiles.Count == 1) {
+            int dx = Mathf.Abs(newPos.x - lastPos.x);
+            int dy = Mathf.Abs(newPos.y - lastPos.y);
+            return (dx <= 1 && dy <= 1) && !(dx == 0 && dy == 0);
+        }
 
-        return (dx <= 1 && dy <= 1) && !(dx == 0 && dy == 0);
+        // For subsequent tiles: must follow initial direction
+        Vector2Int requiredPos = lastPos + selectionDirection;
+        return newPos == requiredPos;
+    }
+
+    private void ResetDirection() {
+        selectionDirection = Vector2Int.zero;
+        //now that we reset the direction we want smaller trigger area
+        LetterGridManager.instance.SmallerTilesTriggerArea();
     }
 }

@@ -5,10 +5,7 @@ using UnityEngine.UI;
 
 public class LetterGridManager : MonoBehaviour {
 
-    // Add at top of LetterGridManager.cs
-    [Header("Debug Settings")]
-    public bool highlightWordTiles = true; // Toggle in Unity Inspector
-    public Color wordTileColor = new Color(0.5f, 0f, 0.8f, 1f); // Purple color
+
 
     // Add to LetterGridManager
     [Header("Difficulty Settings")]
@@ -36,8 +33,6 @@ public class LetterGridManager : MonoBehaviour {
         gridParent.GetComponent<GridLayoutGroup>().constraintCount = gridSize;
         GenerateGrid();
     }
-
-    // In LetterGridManager.cs
 
     void GenerateGrid() {
         letterGrid = new char[gridSize, gridSize];
@@ -79,16 +74,14 @@ public class LetterGridManager : MonoBehaviour {
                 LetterGridLetterTile letterTile = tile.GetComponent<LetterGridLetterTile>();
                 letterTile.SetLetter(letterGrid[i, j]);
                 letterTile.SetTilePos(i, j);
+                letterTile.SetCurrentColor(LetterGridWordManager.instance.baseColor);
                 tilesList.Add(letterTile);
 
                 // DEBUG: Apply purple color to word tiles
-                if (highlightWordTiles && wordTilePositions.Contains(new Vector2Int(i, j))) {
-                    Image tileImage = tile.GetComponent<Image>();
-                    tileImage.color = wordTileColor;
-
+                if (LetterGridWordManager.instance.highlightWordTiles && wordTilePositions.Contains(new Vector2Int(i, j))) {
                     // Update tile's base color to maintain purple when deselected
                     LetterGridLetterTile tileScript = tile.GetComponent<LetterGridLetterTile>();
-                    tileScript.SetBaseColor(wordTileColor);
+                    tileScript.SetCurrentColor(LetterGridWordManager.instance.wordTileColor);
                 }
             }
         }
@@ -96,6 +89,20 @@ public class LetterGridManager : MonoBehaviour {
         // Debug: Show placed words
         Debug.Log("Successfully placed words: " + string.Join(", ", successfullyPlaced));
     }
+
+    public void ResetTilesTriggerArea() {
+        foreach (var item in tilesList)
+        {
+            item.ResetTriggerAreaPercentage();
+        }
+    }
+
+    public void SmallerTilesTriggerArea() {
+        foreach (var item in tilesList) {
+            item.SmallerTriggerAreaPercentage();
+        }
+    }
+
 
     private bool TryPlaceWord(string word) {
         // Directions: right, down, down-right, down-left
@@ -143,7 +150,7 @@ public class LetterGridManager : MonoBehaviour {
                 foreach (char c in word) {
                     letterGrid[pos.x, pos.y] = c;
                     // Mark position as part of a word
-                    if (highlightWordTiles) {
+                    if (LetterGridWordManager.instance.highlightWordTiles) {
                         wordTilePositions.Add(pos);
                     }
                     pos += dir;
@@ -190,11 +197,5 @@ public class LetterGridManager : MonoBehaviour {
 
     private char GetRandomLetter() {
         return alphabet[Random.Range(0, alphabet.Length)];
-    }
-
-    public void ResetTiles() {
-        foreach (var item in tilesList) {
-            item.Deselect();
-        }
     }
 }
