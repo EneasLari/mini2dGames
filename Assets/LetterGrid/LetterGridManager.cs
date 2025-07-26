@@ -11,12 +11,14 @@ public class LetterGridManager : MonoBehaviour {
     public int minWordsToPlace = 3;
     public int maxWordsToPlace = 5;
 
-    public static LetterGridManager instance;
 
     [Header("📦 Grid Setup")]
     public GameObject letterTilePrefab;
     public Transform gridParent;
     public int gridSize = 4;
+
+    [HideInInspector]
+    public List<string> placedWords = new();
 
     private char[,] letterGrid;
     private readonly string alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -24,20 +26,58 @@ public class LetterGridManager : MonoBehaviour {
     private readonly HashSet<Vector2Int> wordTilePositions = new();
 
     private void Awake() {
-        instance = this;
     }
 
     private void Start() {
-        gridParent.GetComponent<GridLayoutGroup>().constraint = GridLayoutGroup.Constraint.FixedRowCount;
-        gridParent.GetComponent<GridLayoutGroup>().constraintCount = gridSize;
+        
+
+    }
+
+    public void StartGridManager() {
+        UpdateGridLayout();
         GenerateGrid();
     }
 
-    public void GenerateGrid() {
+    private void OnRectTransformDimensionsChange() {
+        UpdateGridLayout();
+    }
+
+
+    public void UpdateGridLayout() {
+        GridLayoutGroup gridLayout = gridParent.GetComponent<GridLayoutGroup>();
+        RectTransform panelRect = gridParent.parent.GetComponent<RectTransform>();
+
+        gridLayout.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+        gridLayout.constraintCount = gridSize;
+
+        float width = panelRect.rect.width;
+        float height = panelRect.rect.height;
+
+        float spacingX = gridLayout.spacing.x;
+        float spacingY = gridLayout.spacing.y;
+
+        float totalSpacingX = spacingX * (gridSize - 1);
+        float totalSpacingY = spacingY * (gridSize - 1);
+
+        float availableWidth = width - gridLayout.padding.left - gridLayout.padding.right - totalSpacingX;
+        float availableHeight = height - gridLayout.padding.top - gridLayout.padding.bottom - totalSpacingY;
+
+        float cellSize = Mathf.Min(availableWidth, availableHeight) / gridSize;
+
+        gridLayout.cellSize = new Vector2(cellSize, cellSize);
+    }
+
+    private void GenerateGrid() {
+        // 💥 Clear previous grid tiles
+        foreach (Transform child in gridParent) {
+            Destroy(child.gameObject);
+        }
+
         letterGrid = new char[gridSize, gridSize];
         gridTiles.Clear();
         wordTilePositions.Clear();
 
+        // Initialize grid with empty cells
         for (int i = 0; i < gridSize; i++) {
             for (int j = 0; j < gridSize; j++) {
                 letterGrid[i, j] = '\0';
@@ -53,6 +93,9 @@ public class LetterGridManager : MonoBehaviour {
             }
         }
 
+        placedWords = new List<string>(successfullyPlaced);
+
+        // Fill remaining empty spots with random letters
         for (int i = 0; i < gridSize; i++) {
             for (int j = 0; j < gridSize; j++) {
                 if (letterGrid[i, j] == '\0') {
@@ -61,18 +104,22 @@ public class LetterGridManager : MonoBehaviour {
             }
         }
 
+        // Create UI tiles
         for (int i = 0; i < gridSize; i++) {
             for (int j = 0; j < gridSize; j++) {
                 GameObject tile = Instantiate(letterTilePrefab, gridParent);
+                CanvasGroup group = tile.AddComponent<CanvasGroup>();
+                group.alpha = 0f;
                 tile.GetComponentInChildren<TMP_Text>().text = letterGrid[i, j].ToString();
+
                 LetterGridLetterTile letterTile = tile.GetComponent<LetterGridLetterTile>();
                 letterTile.SetLetter(letterGrid[i, j]);
                 letterTile.SetTilePos(i, j);
-                letterTile.SetCurrentColor(LetterGridWordManager.instance.baseColor);
+                letterTile.SetCurrentColor(LetterGridGameManager.Instance.wordManager.baseColor);
                 gridTiles.Add(letterTile);
 
-                if (LetterGridWordManager.instance.highlightWordTiles && wordTilePositions.Contains(new Vector2Int(i, j))) {
-                    letterTile.SetCurrentColor(LetterGridWordManager.instance.wordTileColor);
+                if (LetterGridGameManager.Instance.wordManager.highlightWordTiles && wordTilePositions.Contains(new Vector2Int(i, j))) {
+                    letterTile.SetCurrentColor(LetterGridGameManager.Instance.wordManager.wordTileColor);
                 }
             }
         }
@@ -126,7 +173,7 @@ public class LetterGridManager : MonoBehaviour {
                 pos = startPos;
                 foreach (char c in word) {
                     letterGrid[pos.x, pos.y] = c;
-                    if (LetterGridWordManager.instance.highlightWordTiles) {
+                    if (LetterGridGameManager.Instance.wordManager.highlightWordTiles) {
                         wordTilePositions.Add(pos);
                     }
                     pos += dir;
@@ -151,7 +198,7 @@ public class LetterGridManager : MonoBehaviour {
         int wordCount = Random.Range(minWords, maxWords + 1);
 
         List<string> candidates = new();
-        foreach (string word in LetterGridWordManager.instance.validWords) {
+        foreach (string word in LetterGridGameManager.Instance.wordManager.validWords) {
             if (word.Length >= minWordLength && word.Length <= maxWordLength) {
                 candidates.Add(word);
             }
@@ -164,7 +211,9 @@ public class LetterGridManager : MonoBehaviour {
         }
         return words;
     }
-
+    public LetterGridLetterTile GetTileAt(int x, int y) {
+        return gridTiles.Find(tile => tile.GetTilePos() == new Vector2Int(x, y));
+    }
     private char GetRandomLetter() {
         return alphabet[Random.Range(0, alphabet.Length)];
     }

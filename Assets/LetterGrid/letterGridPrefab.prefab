@@ -270,6 +270,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 32cc5a2dadd27c24babba5b7c609d883, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  triggerAreaPercentage: 0.7
+  isSelected: 0
+  smallerTriggerAreaPercentage: 0.7
   tileType: 0
   IsPartOfWord: 0

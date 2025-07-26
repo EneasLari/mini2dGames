@@ -34,15 +34,15 @@ public class LetterGridLetterTile : MonoBehaviour, IPointerDownHandler, IPointer
     }
 
     public void OnPointerDown(PointerEventData eventData) {
-        if (LetterGridWordManager.instance.IsShowingFeedback) return;
+        if (LetterGridGameManager.Instance.wordManager.IsShowingFeedback) return;
 
-        if (!LetterGridWordManager.instance.IsUserSelecting) {
-            LetterGridWordManager.instance.StartSelection(this);
+        if (!LetterGridGameManager.Instance.wordManager.IsUserSelecting) {
+            LetterGridGameManager.Instance.wordManager.StartSelection(this);
         }
     }
 
     public void OnPointerEnter(PointerEventData eventData) {
-        LetterGridWordManager.instance.TrySelectHoveredTile(this);
+        LetterGridGameManager.Instance.wordManager.TrySelectHoveredTile(this);
     }
 
     public void SelectTile() {
