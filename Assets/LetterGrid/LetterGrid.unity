@@ -307,7 +307,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   gridCanvas: {fileID: 1452368734}
   wordDisplayText: {fileID: 1082746597}
-  scoreDisplayText: {fileID: 1090908998}
+  scoreDisplayText: {fileID: 993941078}
+  levelDisplayText: {fileID: 1090908998}
   levelMessageText: {fileID: 1642122626}
   levelMessagePanel: {fileID: 1520690135}
   highlightWordTiles: 1

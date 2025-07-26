@@ -53,7 +53,7 @@ public class LetterGridWordManager : MonoBehaviour {
         levelComplete = false;
         foundWords.Clear();
         LoadDictionary();
-        scoreDisplayText.text = "Score: 0";
+        scoreDisplayText.text = $"Score: {score}"; ;
         levelDisplayText.text = $"Level: {LetterGridGameManager.Instance.currentLevel}";
         wordDisplayText.text = "Word: ";
     }
@@ -65,9 +65,9 @@ public class LetterGridWordManager : MonoBehaviour {
         bool touchReleased = (Input.touchCount > 0 && Input.GetTouch(0).phase == TouchPhase.Ended);
 
         if (isUserSelecting && (mouseReleased || touchReleased)) {
+            isUserSelecting = false;
             if (activeWord.Length >= 3) ValidateSelectedWord();
             else ClearTileSelection();
-            isUserSelecting = false;
         }
 
         if (isUserSelecting && Input.touchCount > 0) {
@@ -159,6 +159,8 @@ public class LetterGridWordManager : MonoBehaviour {
     }
 
     public void ValidateSelectedWord() {
+        Debug.Log($"[Validate] isShowingFeedback:{isShowingFeedback} levelComplete:{levelComplete} activeWord:{activeWord}");
+
         if (isShowingFeedback || levelComplete) return;
 
         bool isValid = validWords.Contains(activeWord) && !foundWords.Contains(activeWord);
@@ -181,6 +183,7 @@ public class LetterGridWordManager : MonoBehaviour {
                 return;
             }
         }
+        Debug.Log($"END OF [Validate] isShowingFeedback:{isShowingFeedback} levelComplete:{levelComplete} activeWord:{activeWord}");
         StartCoroutine(FlashTilesAndReset(flashColor, isValid));
     }
 
