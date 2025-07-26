@@ -14,7 +14,7 @@ public class LetterGridLetterTile : MonoBehaviour, IPointerDownHandler, IPointer
     public enum TileType { Normal, DoubleLetter, TripleWord }
     public TileType tileType = TileType.Normal;
 
-    [HideInInspector] public bool IsPartOfWord = false;
+    [HideInInspector] public bool IsFound = false;
 
     void Start() {
         currentTriggerAreaPercentage = smallerTriggerAreaPercentage;

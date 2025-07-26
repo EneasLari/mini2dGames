@@ -160,7 +160,7 @@ public class LetterGridWordManager : MonoBehaviour {
         if (isValid) {
             int wordScore = activeWord.Length * 10;
             foreach (var tile in selectedTiles) {
-                tile.IsPartOfWord = true;
+                tile.IsFound = true;
                 if (tile.tileType == TileType.DoubleLetter) wordScore += 5;
                 else if (tile.tileType == TileType.TripleWord) wordScore *= 3;
             }
@@ -299,7 +299,7 @@ public class LetterGridWordManager : MonoBehaviour {
         wordDisplayText.text = "Word: " + activeWord;
 
         lastTile.Deselect();
-        lastTile.SetCurrentColor(lastTile.IsPartOfWord ? correctColor : baseColor);
+        lastTile.SetCurrentColor(lastTile.IsFound ? correctColor : baseColor);
 
         if (selectedTiles.Count == 1) {
             ResetDirection();
@@ -326,7 +326,7 @@ public class LetterGridWordManager : MonoBehaviour {
         ClearActiveWord();
         foreach (var tile in selectedTiles) {
             tile.Deselect();
-            tile.SetCurrentColor((isValid || tile.IsPartOfWord) ? correctColor : baseColor);
+            tile.SetCurrentColor((isValid || tile.IsFound) ? correctColor : baseColor);
         }
         selectedTiles.Clear();
         isShowingFeedback = false;
@@ -338,7 +338,7 @@ public class LetterGridWordManager : MonoBehaviour {
         ClearActiveWord();
         foreach (var tile in selectedTiles) {
             tile.Deselect();
-            tile.SetCurrentColor(baseColor);
+            tile.SetCurrentColor(tile.IsFound ? correctColor : baseColor);
         }
         selectedTiles.Clear();
         isUserSelecting = false;
