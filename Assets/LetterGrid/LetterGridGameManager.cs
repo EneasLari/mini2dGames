@@ -12,6 +12,11 @@ public class LetterGridGameManager : MonoBehaviour {
     [Header("🕹 Game State")]
     public bool isGameActive { get; private set; } = false;
 
+    [Header("🔼 Difficulty Scaling")]
+    public int currentLevel { get; private set; } = 1;
+    public int maxLevel = 10;
+
+
     private void Awake() {
         if (Instance != null && Instance != this) {
             Destroy(gameObject);
@@ -26,7 +31,7 @@ public class LetterGridGameManager : MonoBehaviour {
 
     public void StartNewGame() {
         isGameActive = true;
-
+        UpdateDifficultySettings();
         wordManager.enabled = true;
         wordManager.ClearTileSelection();
         wordManager.StartWordManager();
@@ -53,4 +58,27 @@ public class LetterGridGameManager : MonoBehaviour {
         yield return new WaitForSeconds(delay);
         StartNewGame();
     }
+
+    public void UpdateDifficultySettings() {
+        // Example logic: every 2 levels, increase grid size, but max out at 8x8
+        int newGridSize = Mathf.Min(4 + (currentLevel - 1) / 2, 8);
+        int newMinWordLength = Mathf.Min(3 + currentLevel / 3, newGridSize);
+        int newMaxWordLength = Mathf.Min(5 + currentLevel / 2, newGridSize);
+
+        gridManager.gridSize = newGridSize;
+        gridManager.minWordLength = newMinWordLength;
+        gridManager.maxWordLength = newMaxWordLength;
+        gridManager.minWordsToPlace = Mathf.Min(3 + currentLevel / 2, 8);
+        gridManager.maxWordsToPlace = Mathf.Min(5 + currentLevel / 2, 10);
+    }
+
+    public void NextLevel() {
+        currentLevel++;
+        if (currentLevel > maxLevel)
+            currentLevel = maxLevel;
+        UpdateDifficultySettings();
+        StartNewGame();
+    }
+
+
 }

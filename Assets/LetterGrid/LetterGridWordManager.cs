@@ -12,6 +12,7 @@ public class LetterGridWordManager : MonoBehaviour {
     public Canvas gridCanvas;
     public TMP_Text wordDisplayText;
     public TMP_Text scoreDisplayText;
+    public TMP_Text levelDisplayText;
     public TMP_Text levelMessageText;
     public GameObject levelMessagePanel;
 
@@ -35,6 +36,8 @@ public class LetterGridWordManager : MonoBehaviour {
     private bool isShowingFeedback = false;
     private bool isUserSelecting = false;
     private Vector2Int wordDirection;
+    private bool levelComplete = false;
+
 
     public bool IsShowingFeedback => isShowingFeedback;
     public bool IsUserSelecting => isUserSelecting;
@@ -47,8 +50,11 @@ public class LetterGridWordManager : MonoBehaviour {
     }
 
     public void StartWordManager() {
+        levelComplete = false;
+        foundWords.Clear();
         LoadDictionary();
         scoreDisplayText.text = "Score: 0";
+        levelDisplayText.text = $"Level: {LetterGridGameManager.Instance.currentLevel}";
         wordDisplayText.text = "Word: ";
     }
 
@@ -98,6 +104,7 @@ public class LetterGridWordManager : MonoBehaviour {
         ClearTileSelection();
         isUserSelecting = true;
         AddTileToWord(firstTile);
+        LetterGridGameManager.Instance.gridManager.SmallerTilesTriggerArea();
     }
 
     public void AddTileToWord(LetterGridLetterTile tile) {
@@ -152,7 +159,7 @@ public class LetterGridWordManager : MonoBehaviour {
     }
 
     public void ValidateSelectedWord() {
-        if (isShowingFeedback) return;
+        if (isShowingFeedback || levelComplete) return;
 
         bool isValid = validWords.Contains(activeWord) && !foundWords.Contains(activeWord);
         Color flashColor = isValid ? Color.green : Color.red;
@@ -165,10 +172,11 @@ public class LetterGridWordManager : MonoBehaviour {
                 else if (tile.tileType == TileType.TripleWord) wordScore *= 3;
             }
             score += wordScore;
-            scoreDisplayText.text = "Score: " + score;
-            foundWords.Add(activeWord);
+            scoreDisplayText.text = $"Score: {score}";
+            foundWords.Add(activeWord.ToUpper());
 
-            if (AllPlacedWordsFound()) {
+            if (AllPlacedWordsFound() && !levelComplete) {
+                levelComplete = true;
                 StartCoroutine(FlashThenAnimateVictory());
                 return;
             }
@@ -232,8 +240,9 @@ public class LetterGridWordManager : MonoBehaviour {
         levelMessagePanel.SetActive(false);
 
         if (resetAfterMessage) {
-            LetterGridGameManager.Instance.StartNewGame();
+            LetterGridGameManager.Instance.NextLevel();
         }
+
     }
 
     public IEnumerator AnimateGridTiles(
@@ -343,6 +352,7 @@ public class LetterGridWordManager : MonoBehaviour {
         selectedTiles.Clear();
         isUserSelecting = false;
         ResetDirection();
+        LetterGridGameManager.Instance.gridManager.ResetTilesTriggerArea();
     }
 
     public void ClearActiveWord() {

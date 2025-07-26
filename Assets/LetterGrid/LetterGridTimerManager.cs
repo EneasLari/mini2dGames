@@ -11,6 +11,7 @@ public class LetterGridTimerManager : MonoBehaviour {
     private float timeLeft;
     private bool isTimerActive = false;
     private Color defaultColor;
+    private bool defaultColorInitialized = false;
 
     private void Start() {
 
@@ -30,8 +31,10 @@ public class LetterGridTimerManager : MonoBehaviour {
     public void StartNewRound(float customDuration = -1f) {
         timeLeft = customDuration > 0f ? customDuration : roundDuration;
         isTimerActive = true;
-        if (timerText != null)
+        if (timerText != null && !defaultColorInitialized) {
             defaultColor = timerText.color;
+            defaultColorInitialized = true;
+        }
         UpdateTimerUI();
     }
 

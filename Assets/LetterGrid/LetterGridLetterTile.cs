@@ -17,7 +17,7 @@ public class LetterGridLetterTile : MonoBehaviour, IPointerDownHandler, IPointer
     [HideInInspector] public bool IsFound = false;
 
     void Start() {
-        currentTriggerAreaPercentage = smallerTriggerAreaPercentage;
+        currentTriggerAreaPercentage = 1f;
     }
 
     public void SetLetter(char newLetter) {
