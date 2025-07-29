@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 public class LetterMenuManager : MonoBehaviour {
@@ -12,8 +11,7 @@ public class LetterMenuManager : MonoBehaviour {
     public Button resumeButton;
     public Button mainMenuButton;
     public Button pauseButton;
-
-
+    
 
     private bool isPaused = false;
 
@@ -28,6 +26,7 @@ public class LetterMenuManager : MonoBehaviour {
             mainMenuButton.onClick.AddListener(ReturnToMainMenu);
         if (pauseButton != null)
             pauseButton.onClick.AddListener(ShowInGameMenu);
+        
     }
 
     private void Start() {

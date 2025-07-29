@@ -5,25 +5,53 @@ using UnityEngine.UI;
 
 public class LetterGridManager : MonoBehaviour {
 
-    [Header("⚙️ Difficulty Settings")]
-    public int minWordLength = 3;
-    public int maxWordLength = 6;
-    public int minWordsToPlace = 3;
-    public int maxWordsToPlace = 5;
-
-
     [Header("📦 Grid Setup")]
-    public GameObject letterTilePrefab;
     public Transform gridParent;
     public int gridSize = 4;
 
     [HideInInspector]
     public List<string> placedWords = new();
 
-    private char[,] letterGrid;
+    private LetterData[,] letterGrid;
     private readonly string alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    private readonly List<LetterGridLetterTile> gridTiles = new();
-    private readonly HashSet<Vector2Int> wordTilePositions = new();
+    private const int maxGridAttempts = 10;
+
+    [Header("🎨 Tile Colors")]
+    public Color baseColor = Color.white;
+    public Color correctColor = Color.green;
+    public Color selectedColor = Color.yellow;
+
+    [Header("🛠 Gameplay Settings")]
+    public bool highlightWordTiles = true;
+    public Color wordTileColor = new Color(0.5f, 0f, 0.8f, 1f);
+
+    public HashSet<string> validWords = new HashSet<string>();
+    public HashSet<string> foundWords = new HashSet<string>();
+
+    // List of words to exclude (case-insensitive)
+    public HashSet<string> bannedWords = new HashSet<string> {
+            // Violence / Weapons
+            "KILL", "GUN", "BOMB", "WAR", "FIGHT", "SHOOT", "MURDER", "DEATH", "VIOLENCE", "TERROR", "ATTACK",
+
+            // Drugs / Substances
+            "DRUG", "WEED", "COCAINE", "HEROIN", "ALCOHOL", "VODKA", "BEER", "METH", "CIGARETTE", "SMOKE", "POT",
+
+            // Sexual Content
+            "SEX", "NUDE", "PORN", "NAKED", "RAPE", "MOLEST", "ORGASM", "BDSM", "XXX", "VAGINA", "PENIS", "BREAST",
+
+            // Hate / Discrimination
+            "NAZI", "HITLER", "RACIST", "RACISM", "HATE", "KLAN", "BIGOT", "SLAVE",
+
+            // Suicide / Self-harm
+            "SUICIDE", "SELFHARM", "DEPRESS", "CUTTING", "OVERDOSE", "HANG", "DIE",
+
+            // Profanity / Inappropriate language
+            "HELL", "DAMN", "CRAP", "SHIT", "FUCK", "BITCH", "BASTARD", "ASS", "DICK", "PISS", "COCK", "CUM",
+
+            // Other (contextually sensitive)
+            "GAMBLE", "CASINO", "SATAN", "DEVIL", "OCCULT", "WITCH", "CURSE"
+    };
+
 
     private void Awake() {
     }
@@ -34,7 +62,10 @@ public class LetterGridManager : MonoBehaviour {
     }
 
     public void StartGridManager() {
+        LoadDictionary();
+        foundWords.Clear();
         UpdateGridLayout();
+        ClearGridToPool();
         GenerateGrid();
     }
 
@@ -68,23 +99,17 @@ public class LetterGridManager : MonoBehaviour {
     }
 
     private void GenerateGrid() {
-        // 💥 Clear previous grid tiles
-        foreach (Transform child in gridParent) {
-            Destroy(child.gameObject);
-        }
-
-        letterGrid = new char[gridSize, gridSize];
-        gridTiles.Clear();
-        wordTilePositions.Clear();
-
-        // Initialize grid with empty cells
+        letterGrid = new LetterData[gridSize, gridSize];
+        // Initialize grid with empty characters
         for (int i = 0; i < gridSize; i++) {
             for (int j = 0; j < gridSize; j++) {
-                letterGrid[i, j] = '\0';
+                letterGrid[i, j] = new LetterData(i,j);
             }
         }
 
-        List<string> wordsToPlace = GetWordsForGrid(minWordsToPlace, maxWordsToPlace);
+
+        // 🧩 Pick valid words and try to place them
+        List<string> wordsToPlace = GetWordsForGrid(LetterGridGameManager.Instance.minWordsToPlace, LetterGridGameManager.Instance.maxWordsToPlace);
         List<string> successfullyPlaced = new();
 
         foreach (string word in wordsToPlace) {
@@ -95,49 +120,86 @@ public class LetterGridManager : MonoBehaviour {
 
         placedWords = new List<string>(successfullyPlaced);
 
-        // Fill remaining empty spots with random letters
-        for (int i = 0; i < gridSize; i++) {
-            for (int j = 0; j < gridSize; j++) {
-                if (letterGrid[i, j] == '\0') {
-                    letterGrid[i, j] = GetRandomLetter();
+        // 🔠 Fill empty spots with random letters
+        // Place words as usual, then:
+        bool safe = false;
+        int attempts = 0;
+
+        while (!safe && attempts < maxGridAttempts) {
+            // Fill random letters only
+            for (int i = 0; i < gridSize; i++) {
+                for (int j = 0; j < gridSize; j++) {
+                    if (letterGrid[i, j].Flag == LetterData.LetterFlag.Random) {
+                        letterGrid[i, j].SetLetter(GetRandomLetter());
+                    }
                 }
+            }
+
+            if (!GridContainsBannedWord()) {
+                safe = true;
+            }
+            else {
+                attempts++;
+                Debug.LogWarning($"⚠️ Banned word found in random fill. Retrying randoms... (Attempt {attempts}/{maxGridAttempts})");
             }
         }
 
-        // Create UI tiles
+        //if (!safe) {
+        //    Debug.LogError("❌ Max attempts for safe random letter fill reached. Consider adjusting banned word list or grid size.");
+        //    return;
+        //}
+
+        // 🧱 Instantiate letter tiles
         for (int i = 0; i < gridSize; i++) {
-            for (int j = 0; j < gridSize; j++) {
-                GameObject tile = Instantiate(letterTilePrefab, gridParent);
-                CanvasGroup group = tile.AddComponent<CanvasGroup>();
+            for (int j = 0; j < gridSize; j++) {           
+                GameObject tile = LetterTilePool.Instance.GetTile(gridParent);
+                CanvasGroup group = tile.GetComponent<CanvasGroup>();
+                if (group == null) group = tile.AddComponent<CanvasGroup>();
                 group.alpha = 0f;
-                tile.GetComponentInChildren<TMP_Text>().text = letterGrid[i, j].ToString();
+
+                tile.GetComponentInChildren<TMP_Text>().text = letterGrid[i, j].TileLetter.ToString();
 
                 LetterGridLetterTile letterTile = tile.GetComponent<LetterGridLetterTile>();
-                letterTile.SetLetter(letterGrid[i, j]);
-                letterTile.SetTilePos(i, j);
-                letterTile.SetCurrentColor(LetterGridGameManager.Instance.wordManager.baseColor);
-                gridTiles.Add(letterTile);
+                letterTile.LetterData = letterGrid[i, j]; // Use prepared LetterData
+                letterTile.SetCurrentColor(baseColor);
 
-                if (LetterGridGameManager.Instance.wordManager.highlightWordTiles && wordTilePositions.Contains(new Vector2Int(i, j))) {
-                    letterTile.SetCurrentColor(LetterGridGameManager.Instance.wordManager.wordTileColor);
+                if (highlightWordTiles &&
+                    letterGrid[i,j].Flag==LetterData.LetterFlag.InWord) {
+                    letterTile.SetCurrentColor(wordTileColor);
                 }
             }
         }
 
-        Debug.Log("Successfully placed words: " + string.Join(", ", successfullyPlaced));
+        //Debug.Log("✅ Successfully placed words: " + string.Join(", ", successfullyPlaced));
     }
 
+    public void ClearGridToPool() {
+        // Create a temp list so we don't modify the collection while iterating
+        List<GameObject> children = new List<GameObject>();
+        foreach (Transform child in gridParent)
+            children.Add(child.gameObject);
+
+        foreach (var tile in children)
+            LetterTilePool.Instance.ReturnTile(tile);
+    }
+
+
     public void ResetTilesTriggerArea() {
-        foreach (var tile in gridTiles) {
-            tile.ResetTriggerAreaPercentage();
+        for (int i = 0; i < gridSize; i++) {
+            for (int j = 0; j < gridSize; j++) {
+                letterGrid[i, j].ResetTriggerAreaPercentage();
+            }
         }
     }
 
     public void SmallerTilesTriggerArea() {
-        foreach (var tile in gridTiles) {
-            tile.SmallerTriggerAreaPercentage();
+        for (int i = 0; i < gridSize; i++) {
+            for (int j = 0; j < gridSize; j++) {
+                letterGrid[i, j].SetSmallerTriggerAreaPercentage();
+            }
         }
     }
+
 
     private bool TryPlaceWord(string word) {
         Vector2Int[] directions = {
@@ -161,7 +223,7 @@ public class LetterGridManager : MonoBehaviour {
                 bool canPlace = true;
 
                 foreach (char c in word) {
-                    if (letterGrid[pos.x, pos.y] != '\0' && letterGrid[pos.x, pos.y] != c) {
+                    if (letterGrid[pos.x, pos.y].Flag != LetterData.LetterFlag.Random && letterGrid[pos.x, pos.y].TileLetter != c) {
                         canPlace = false;
                         break;
                     }
@@ -172,10 +234,8 @@ public class LetterGridManager : MonoBehaviour {
 
                 pos = startPos;
                 foreach (char c in word) {
-                    letterGrid[pos.x, pos.y] = c;
-                    if (LetterGridGameManager.Instance.wordManager.highlightWordTiles) {
-                        wordTilePositions.Add(pos);
-                    }
+                    letterGrid[pos.x, pos.y].SetLetter(c);
+                    letterGrid[pos.x, pos.y].Flag= LetterData.LetterFlag.InWord;
                     pos += dir;
                 }
                 return true;
@@ -198,8 +258,8 @@ public class LetterGridManager : MonoBehaviour {
         int wordCount = Random.Range(minWords, maxWords + 1);
 
         List<string> candidates = new();
-        foreach (string word in LetterGridGameManager.Instance.wordManager.validWords) {
-            if (word.Length >= minWordLength && word.Length <= maxWordLength) {
+        foreach (string word in validWords) {
+            if (word.Length >= LetterGridGameManager.Instance.minWordLength && word.Length <= LetterGridGameManager.Instance.maxWordLength) {
                 candidates.Add(word);
             }
         }
@@ -212,9 +272,90 @@ public class LetterGridManager : MonoBehaviour {
         return words;
     }
     public LetterGridLetterTile GetTileAt(int x, int y) {
-        return gridTiles.Find(tile => tile.GetTilePos() == new Vector2Int(x, y));
+        int index = x * gridSize + y;
+        if (index < 0 || index >= gridParent.childCount)
+            return null;
+        return gridParent.GetChild(index).GetComponent<LetterGridLetterTile>();
     }
+
     private char GetRandomLetter() {
         return alphabet[Random.Range(0, alphabet.Length)];
     }
+
+    private bool GridContainsBannedWord() {
+        int[] dx = { -1, -1, -1, 0, 0, 1, 1, 1 };
+        int[] dy = { -1, 0, 1, -1, 1, -1, 0, 1 };
+
+        for (int x = 0; x < gridSize; x++) {
+            for (int y = 0; y < gridSize; y++) {
+                for (int d = 0; d < 8; d++) {
+                    string line = "";
+
+                    int cx = x;
+                    int cy = y;
+
+                    for (int len = 0; len < gridSize; len++) {
+                        if (cx < 0 || cx >= gridSize || cy < 0 || cy >= gridSize)
+                            break;
+
+                        line += letterGrid[cx, cy].TileLetter;
+
+                        string upperLine = line.ToUpper();
+                        string reversedLine = ReverseString(upperLine);
+
+                        // For every banned word, check if the last N letters match, where N is the length of the banned word
+                        foreach (string banned in bannedWords) {
+                            int n = banned.Length;
+                            if (line.Length >= n) {
+                                string lastN = line.Substring(line.Length - n, n).ToUpper();
+                                string lastNReversed = ReverseString(lastN);
+                                if (lastN == banned || lastNReversed == banned) {
+                                    Debug.LogWarning($"🚫 Found banned word '{banned}' in grid: {lastN}");
+                                    return true;
+                                }
+                            }
+                        }
+
+                        cx += dx[d];
+                        cy += dy[d];
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private string ReverseString(string input) {
+        char[] arr = input.ToCharArray();
+        System.Array.Reverse(arr);
+        return new string(arr);
+    }
+
+    private void LoadDictionary() {
+        TextAsset wordFile = Resources.Load<TextAsset>("LetterGrid/wordlist");
+        if (wordFile == null) {
+            Debug.LogError("wordlist.txt not found in Resources folder!");
+            return;
+        }
+
+
+        string[] words = wordFile.text.Split('\n');
+        HashSet<string> filteredWords = new HashSet<string>();
+
+        foreach (string word in words) {
+            string cleanWord = word.Trim().ToUpper();
+
+            if (cleanWord.Length >= 3 &&
+                cleanWord.Length <= gridSize &&
+                !bannedWords.Contains(cleanWord)) {
+
+                filteredWords.Add(cleanWord);
+            }
+        }
+
+        validWords = filteredWords;
+        Debug.Log($"[Dictionary] Loaded {validWords.Count} valid family-safe words.");
+    }
+
 }

@@ -1,36 +1,76 @@
 using TMPro;
+using UnityEngine.EventSystems;
 using UnityEngine;
 using UnityEngine.UI;
-using UnityEngine.EventSystems;
+
+public class LetterData {
+
+    public LetterData(int x,int y) {
+        TilePosition = new Vector2Int(x, y);
+    }
+    public char TileLetter { get; private set; }
+    public Vector2Int TilePosition { get; private set; }
+
+    public float CurrentTriggerAreaPercentage { get; private set; } = 1f;
+
+    public float SmallerTriggerAreaPercentage { get; private set; } = 0.7f;
+    public bool IsSelected { get; set; } = false;
+    public bool IsFound { get; set; } = false;
+
+    public enum LetterType { Normal, DoubleLetter, TripleWord }
+    public enum LetterFlag { InWord, Random }
+    public LetterType Type { get; set; } = LetterType.Normal;
+    public LetterFlag Flag { get; set; } = LetterFlag.Random;
+
+    public void SetLetter(char letter) {
+        TileLetter = letter;
+    }
+    public void ResetTriggerAreaPercentage() {
+        CurrentTriggerAreaPercentage = 1f;
+    }
+
+    public void SetSmallerTriggerAreaPercentage() {
+        CurrentTriggerAreaPercentage = SmallerTriggerAreaPercentage;
+    }
+}
 
 public class LetterGridLetterTile : MonoBehaviour, IPointerDownHandler, IPointerEnterHandler, ICanvasRaycastFilter {
-    private char tileLetter;
-    public bool isSelected = false;
-    private Vector2Int tilePosition;
 
-    [SerializeField] private float smallerTriggerAreaPercentage = 0.7f;
-    private float currentTriggerAreaPercentage;
+    public LetterData LetterData = new LetterData(-1,-1);
 
-    public enum TileType { Normal, DoubleLetter, TripleWord }
-    public TileType tileType = TileType.Normal;
+    private Image tileImage;
+    private TMP_Text tileText;
 
-    [HideInInspector] public bool IsFound = false;
+    void Awake() {
+        tileImage = GetComponent<Image>();
+        tileText = GetComponentInChildren<TMP_Text>();
+    }
 
     void Start() {
-        currentTriggerAreaPercentage = 1f;
     }
 
-    public void SetLetter(char newLetter) {
-        tileLetter = newLetter;
-        GetComponentInChildren<TMP_Text>().text = tileLetter.ToString();
+    public void SetLetterText(char newLetter) {
+        tileText.text = newLetter.ToString();
     }
 
-    public void ResetTriggerAreaPercentage() {
-        currentTriggerAreaPercentage = 1f;
+    public Vector2Int GetTilePos() {
+        return LetterData.TilePosition;
     }
 
-    public void SmallerTriggerAreaPercentage() {
-        currentTriggerAreaPercentage = smallerTriggerAreaPercentage;
+    public void SelectTile() {
+        LetterData.IsSelected = true;
+    }
+
+    public void Deselect() {
+        LetterData.IsSelected = false;
+    }
+
+    public void SetCurrentColor(Color newColor) {
+        tileImage.color = newColor;
+    }
+
+    public Color GetCurrentColor() {
+        return tileImage.color;
     }
 
     public void OnPointerDown(PointerEventData eventData) {
@@ -45,30 +85,6 @@ public class LetterGridLetterTile : MonoBehaviour, IPointerDownHandler, IPointer
         LetterGridGameManager.Instance.wordManager.TrySelectHoveredTile(this);
     }
 
-    public void SelectTile() {
-        isSelected = true;
-    }
-
-    public void Deselect() {
-        isSelected = false;
-    }
-
-    public void SetTilePos(int x, int y) {
-        tilePosition = new Vector2Int(x, y);
-    }
-
-    public Vector2Int GetTilePos() {
-        return tilePosition;
-    }
-
-    public void SetCurrentColor(Color newColor) {
-        GetComponent<Image>().color = newColor;
-    }
-
-    public Color GetCurrentColor() {
-        return GetComponent<Image>().color;
-    }
-
     public bool IsRaycastLocationValid(Vector2 screenPoint, Camera eventCamera) {
         RectTransform rectTransform = GetComponent<RectTransform>();
         RectTransformUtility.ScreenPointToLocalPointInRectangle(
@@ -81,8 +97,8 @@ public class LetterGridLetterTile : MonoBehaviour, IPointerDownHandler, IPointer
         Vector2 pivot = rectTransform.pivot;
         Rect rect = rectTransform.rect;
 
-        float effectiveWidth = rect.width * currentTriggerAreaPercentage;
-        float effectiveHeight = rect.height * currentTriggerAreaPercentage;
+        float effectiveWidth = rect.width * LetterData.CurrentTriggerAreaPercentage;
+        float effectiveHeight = rect.height * LetterData.CurrentTriggerAreaPercentage;
 
         float xMin = -effectiveWidth / 2f;
         float xMax = effectiveWidth / 2f;

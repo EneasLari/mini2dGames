@@ -15,19 +15,10 @@ public class LetterGridWordManager : MonoBehaviour {
     public TMP_Text levelDisplayText;
     public TMP_Text levelMessageText;
     public GameObject levelMessagePanel;
+    public Button continueButton;
 
-    [Header("🛠 Gameplay Settings")]
-    public bool highlightWordTiles = true;
-    public Color wordTileColor = new Color(0.5f, 0f, 0.8f, 1f);
-
-    [Header("🎨 Tile Colors")]
-    public Color baseColor = Color.white;
-    public Color correctColor = Color.green;
-    public Color selectedColor = Color.yellow;
 
     [Header("📈 Scoring & Word State")]
-    public HashSet<string> validWords = new HashSet<string>();
-    private HashSet<string> foundWords = new HashSet<string>();
     private List<LetterGridLetterTile> selectedTiles = new List<LetterGridLetterTile>();
 
     [Header("🔒 Runtime State")]
@@ -42,7 +33,10 @@ public class LetterGridWordManager : MonoBehaviour {
     public bool IsShowingFeedback => isShowingFeedback;
     public bool IsUserSelecting => isUserSelecting;
 
+
     private void Awake() {
+        if (continueButton != null)
+            continueButton.onClick.AddListener(OnContinueGameBtnPressed);
     }
 
     private void Start() {
@@ -51,11 +45,17 @@ public class LetterGridWordManager : MonoBehaviour {
 
     public void StartWordManager() {
         levelComplete = false;
-        foundWords.Clear();
-        LoadDictionary();
+        continueButton.gameObject.SetActive(false);
         scoreDisplayText.text = $"Score: {score}"; ;
         levelDisplayText.text = $"Level: {LetterGridGameManager.Instance.currentLevel}";
         wordDisplayText.text = "Word: ";
+        ClearTileSelection();
+        StartCoroutine(AnimateGridTiles(
+            revealTileVisuals: true,
+            hideTileVisuals: false,
+            bottomToTop: true,
+            leftToRight: false
+        ));
     }
 
     private void Update() {
@@ -92,7 +92,7 @@ public class LetterGridWordManager : MonoBehaviour {
 
         foreach (var result in results) {
             LetterGridLetterTile tile = result.gameObject.GetComponent<LetterGridLetterTile>();
-            if (tile != null && !tile.isSelected) {
+            if (tile != null && !tile.LetterData.IsSelected) {
                 TrySelectHoveredTile(tile);
                 break;
             }
@@ -115,7 +115,7 @@ public class LetterGridWordManager : MonoBehaviour {
         wordDisplayText.text = "Word: " + activeWord;
 
         tile.SelectTile();
-        tile.SetCurrentColor(selectedColor);
+        tile.SetCurrentColor(LetterGridGameManager.Instance.gridManager.selectedColor);
 
         if (selectedTiles.Count == 2) {
             Vector2Int firstPos = selectedTiles[0].GetTilePos();
@@ -132,7 +132,7 @@ public class LetterGridWordManager : MonoBehaviour {
                 return;
             }
 
-            if (!tile.isSelected && IsTileSelectable(tile)) {
+            if (!tile.LetterData.IsSelected && IsTileSelectable(tile)) {
                 AddTileToWord(tile);
             }
         }
@@ -159,23 +159,21 @@ public class LetterGridWordManager : MonoBehaviour {
     }
 
     public void ValidateSelectedWord() {
-        Debug.Log($"[Validate] isShowingFeedback:{isShowingFeedback} levelComplete:{levelComplete} activeWord:{activeWord}");
-
         if (isShowingFeedback || levelComplete) return;
 
-        bool isValid = validWords.Contains(activeWord) && !foundWords.Contains(activeWord);
+        bool isValid = LetterGridGameManager.Instance.gridManager.validWords.Contains(activeWord) && !LetterGridGameManager.Instance.gridManager.foundWords.Contains(activeWord);
         Color flashColor = isValid ? Color.green : Color.red;
 
         if (isValid) {
             int wordScore = activeWord.Length * 10;
             foreach (var tile in selectedTiles) {
-                tile.IsFound = true;
-                if (tile.tileType == TileType.DoubleLetter) wordScore += 5;
-                else if (tile.tileType == TileType.TripleWord) wordScore *= 3;
+                tile.LetterData.IsFound = true;
+                if (tile.LetterData.Type == LetterData.LetterType.DoubleLetter) wordScore += 5;
+                else if (tile.LetterData.Type == LetterData.LetterType.TripleWord) wordScore *= 3;
             }
             score += wordScore;
             scoreDisplayText.text = $"Score: {score}";
-            foundWords.Add(activeWord.ToUpper());
+            LetterGridGameManager.Instance.gridManager.foundWords.Add(activeWord.ToUpper());
 
             if (AllPlacedWordsFound() && !levelComplete) {
                 levelComplete = true;
@@ -183,7 +181,6 @@ public class LetterGridWordManager : MonoBehaviour {
                 return;
             }
         }
-        Debug.Log($"END OF [Validate] isShowingFeedback:{isShowingFeedback} levelComplete:{levelComplete} activeWord:{activeWord}");
         StartCoroutine(FlashTilesAndReset(flashColor, isValid));
     }
 
@@ -195,7 +192,7 @@ public class LetterGridWordManager : MonoBehaviour {
 
     private bool AllPlacedWordsFound() {
         foreach (string placedWord in LetterGridGameManager.Instance.gridManager.placedWords) {
-            if (!foundWords.Contains(placedWord.ToUpper())) {
+            if (!LetterGridGameManager.Instance.gridManager.foundWords.Contains(placedWord.ToUpper())) {
                 return false;
             }
         }
@@ -209,44 +206,79 @@ public class LetterGridWordManager : MonoBehaviour {
         CanvasGroup group = levelMessagePanel.GetComponent<CanvasGroup>();
         RectTransform rectTransform = levelMessagePanel.GetComponent<RectTransform>();
 
-        if (group != null && rectTransform != null) {
-            rectTransform.localScale = Vector3.one * 0.8f;
-            group.alpha = 0f;
+        // Fade in
+        yield return StartCoroutine(FadeLevelMessagePanel(true, group, rectTransform));
 
-            float t = 0f;
-            while (t < 1f) {
-                float eased = Mathf.SmoothStep(0f, 1f, t);
-                group.alpha = Mathf.Clamp01(eased);
-                rectTransform.localScale = Vector3.Lerp(Vector3.one * 0.5f, Vector3.one, eased);
-                t += Time.deltaTime * 2f;
-                yield return null;
-            }
+        yield return new WaitForSeconds(duration);
 
-            group.alpha = 1f;
-            rectTransform.localScale = Vector3.one;
-
-            yield return new WaitForSeconds(duration);
-
-            t = 0f;
-            while (t < 1f) {
-                float eased = Mathf.SmoothStep(0f, 1f, t);
-                group.alpha = Mathf.Lerp(1f, 0f, eased);
-                rectTransform.localScale = Vector3.Lerp(Vector3.one, Vector3.one * 0.5f, eased);
-                t += Time.deltaTime * 2f;
-                yield return null;
-            }
-
-            group.alpha = 0f;
-            rectTransform.localScale = Vector3.one;
-        }
+        // Fade out
+        yield return StartCoroutine(FadeLevelMessagePanel(false, group, rectTransform));
 
         levelMessagePanel.SetActive(false);
 
         if (resetAfterMessage) {
             LetterGridGameManager.Instance.NextLevel();
         }
-
     }
+    public void OnContinueGameBtnPressed() {
+        StartCoroutine(FadeOutAndContinue());
+    }
+
+    private IEnumerator FadeOutAndContinue() {
+        CanvasGroup group = levelMessagePanel.GetComponent<CanvasGroup>();
+        RectTransform rectTransform = levelMessagePanel.GetComponent<RectTransform>();
+
+        // Fade out
+        yield return StartCoroutine(FadeLevelMessagePanel(false, group, rectTransform));
+        levelMessagePanel.SetActive(false);
+        continueButton.gameObject.SetActive(false);
+
+        LetterGridGameManager.Instance.RestartCurrentLevel();
+    }
+    public void ShowLevelMessageUntilContinue(string message) {
+        continueButton.gameObject.SetActive(true);
+        StartCoroutine(ShowLevelMessageUntilContinueRoutine(message));
+    }
+
+    private IEnumerator ShowLevelMessageUntilContinueRoutine(string message) {
+        levelMessageText.text = message;
+        levelMessagePanel.SetActive(true);
+
+        CanvasGroup group = levelMessagePanel.GetComponent<CanvasGroup>();
+        RectTransform rectTransform = levelMessagePanel.GetComponent<RectTransform>();
+
+        // Fade in
+        yield return StartCoroutine(FadeLevelMessagePanel(true, group, rectTransform));
+
+        // Don't fade out or deactivate panel here — wait for player to press Continue.
+    }
+
+    // Shared fade animation
+    private IEnumerator FadeLevelMessagePanel(bool fadeIn, CanvasGroup group, RectTransform rectTransform) {
+        if (group == null || rectTransform == null)
+            yield break;
+
+        float startAlpha = fadeIn ? 0f : 1f;
+        float endAlpha = fadeIn ? 1f : 0f;
+        Vector3 startScale = fadeIn ? Vector3.one * 0.5f : Vector3.one;
+        Vector3 endScale = fadeIn ? Vector3.one : Vector3.one * 0.5f;
+
+        rectTransform.localScale = startScale;
+        group.alpha = startAlpha;
+
+        float t = 0f;
+        while (t < 1f) {
+            float eased = Mathf.SmoothStep(0f, 1f, t);
+            group.alpha = Mathf.Lerp(startAlpha, endAlpha, eased);
+            rectTransform.localScale = Vector3.Lerp(startScale, endScale, eased);
+            t += Time.deltaTime * 2f;
+            yield return null;
+        }
+
+        group.alpha = endAlpha;
+        rectTransform.localScale = endScale;
+    }
+
 
     public IEnumerator AnimateGridTiles(
     bool revealTileVisuals= false,
@@ -311,7 +343,7 @@ public class LetterGridWordManager : MonoBehaviour {
         wordDisplayText.text = "Word: " + activeWord;
 
         lastTile.Deselect();
-        lastTile.SetCurrentColor(lastTile.IsFound ? correctColor : baseColor);
+        lastTile.SetCurrentColor(lastTile.LetterData.IsFound ? LetterGridGameManager.Instance.gridManager.correctColor : LetterGridGameManager.Instance.gridManager.baseColor);
 
         if (selectedTiles.Count == 1) {
             ResetDirection();
@@ -338,7 +370,7 @@ public class LetterGridWordManager : MonoBehaviour {
         ClearActiveWord();
         foreach (var tile in selectedTiles) {
             tile.Deselect();
-            tile.SetCurrentColor((isValid || tile.IsFound) ? correctColor : baseColor);
+            tile.SetCurrentColor((isValid || tile.LetterData.IsFound) ? LetterGridGameManager.Instance.gridManager.correctColor : LetterGridGameManager.Instance.gridManager.baseColor);
         }
         selectedTiles.Clear();
         isShowingFeedback = false;
@@ -350,7 +382,7 @@ public class LetterGridWordManager : MonoBehaviour {
         ClearActiveWord();
         foreach (var tile in selectedTiles) {
             tile.Deselect();
-            tile.SetCurrentColor(tile.IsFound ? correctColor : baseColor);
+            tile.SetCurrentColor(tile.LetterData.IsFound ? LetterGridGameManager.Instance.gridManager.correctColor : LetterGridGameManager.Instance.gridManager.baseColor);
         }
         selectedTiles.Clear();
         isUserSelecting = false;
@@ -363,23 +395,4 @@ public class LetterGridWordManager : MonoBehaviour {
         wordDisplayText.text = "Word: ";
     }
 
-    private void LoadDictionary() {
-        TextAsset wordFile = Resources.Load<TextAsset>("wordlist");
-        if (wordFile == null) {
-            Debug.LogError("wordlist.txt not found in Resources folder!");
-            return;
-        }
-
-        string[] words = wordFile.text.Split('\n');
-        HashSet<string> filteredWords = new HashSet<string>();
-
-        foreach (string word in words) {
-            string cleanWord = word.Trim().ToUpper();
-            if (cleanWord.Length >= 3 && cleanWord.Length <= LetterGridGameManager.Instance.gridManager.gridSize) {
-                filteredWords.Add(cleanWord);
-            }
-        }
-
-        validWords = filteredWords;
-    }
 }
