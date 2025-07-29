@@ -35,7 +35,7 @@ public class LetterMenuManager : MonoBehaviour {
 
     // MAIN MENU
     public void ShowMainMenu() {
-        Time.timeScale = 0f; // Pause everything
+        LetterGridGameManager.Instance.PauseGameTime();
         mainMenuPanel.SetActive(true);
         inGameMenuPanel.SetActive(false);
         hudPanel.SetActive(false);
@@ -46,14 +46,14 @@ public class LetterMenuManager : MonoBehaviour {
         mainMenuPanel.SetActive(false);
         inGameMenuPanel.SetActive(false);
         hudPanel.SetActive(true);
-        Time.timeScale = 1f;
+        LetterGridGameManager.Instance.ResetGameTime();
         LetterGridGameManager.Instance.StartNewRoundAtCurrentLevel();
     }
 
     // IN-GAME MENU
     public void ShowInGameMenu() {
         isPaused = true;
-        Time.timeScale = 0f;
+        LetterGridGameManager.Instance.PauseGameTime();
         inGameMenuPanel.SetActive(true);
         hudPanel.SetActive(false);
     }
@@ -62,7 +62,7 @@ public class LetterMenuManager : MonoBehaviour {
         isPaused = false;
         inGameMenuPanel.SetActive(false);
         hudPanel.SetActive(true);
-        Time.timeScale = 1f;
+        LetterGridGameManager.Instance.ResetGameTime();
     }
 
     public void QuitGame() {

@@ -56,6 +56,12 @@ public class LetterGridGameManager : MonoBehaviour {
         wordManager.ShowLevelMessageUntilContinue(message);
     }
 
+    public void PauseGameTime() {
+        Time.timeScale = 0f;
+    }
+    public void ResetGameTime() {
+        Time.timeScale = 1f;
+    }
     /// <summary>
     /// Advances to the next level and starts a new round at that harder level.
     /// </summary>

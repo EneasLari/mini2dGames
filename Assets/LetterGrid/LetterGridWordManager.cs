@@ -123,6 +123,7 @@ public class LetterGridWordManager : MonoBehaviour {
             wordDirection = secondPos - firstPos;
             LetterGridGameManager.Instance.gridManager.ResetTilesTriggerArea();
         }
+        LetterGridGameAudioEvents.RaiseTileAdded();
     }
 
     public void TrySelectHoveredTile(LetterGridLetterTile tile) {
