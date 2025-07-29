@@ -331,7 +331,7 @@ public class LetterGridManager : MonoBehaviour {
         System.Array.Reverse(arr);
         return new string(arr);
     }
-
+    //TO DO : Dont Call this every time you StartGridManager(only when validword has no elemnts and gridsize gets bigger )
     private void LoadDictionary() {
         TextAsset wordFile = Resources.Load<TextAsset>("LetterGrid/wordlist");
         if (wordFile == null) {
