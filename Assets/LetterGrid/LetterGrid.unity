@@ -2729,7 +2729,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   timerText: {fileID: 78160942}
-  roundDuration: 10
+  roundDuration: 60
   warningColor: {r: 1, g: 0, b: 0, a: 1}
   warningThreshold: 10
 --- !u!4 &1400598899
@@ -3072,9 +3072,19 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   bgMusicSource: {fileID: 1452368736}
   sfxSource: {fileID: 1452368736}
-  bgMusicClip: {fileID: 0}
+  bgMusicClips:
+  - {fileID: 8300000, guid: 8c0a8bc62c94cca45b7a6b083672cb8a, type: 3}
+  - {fileID: 8300000, guid: 4281d5f4b2fb44c4480c74ef09bc463e, type: 3}
   clickClip: {fileID: 8300000, guid: 609c7d933285d0e4795f84d8cedca513, type: 3}
   tileAddClip: {fileID: 8300000, guid: 5a9e447638726394b95bfa873abfe051, type: 3}
+  victoryClip: {fileID: 0}
+  correctMoveClip: {fileID: 0}
+  wrongMoveClip: {fileID: 0}
+  musicVolume: 1
+  sfxVolume: 1
+  isMusicMuted: 0
+  isSFXMuted: 0
+  isAllMuted: 0
 --- !u!4 &1558957952
 Transform:
   m_ObjectHideFlags: 0

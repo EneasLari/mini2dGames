@@ -46,6 +46,7 @@ public class LetterMenuManager : MonoBehaviour {
         mainMenuPanel.SetActive(false);
         inGameMenuPanel.SetActive(false);
         hudPanel.SetActive(true);
+        LetterGridGameAudioEvents.RaiseStartGame();
         LetterGridGameManager.Instance.ResetGameTime();
         LetterGridGameManager.Instance.StartNewRoundAtCurrentLevel();
     }
