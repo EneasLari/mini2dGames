@@ -35,7 +35,6 @@ public class LetterMenuManager : MonoBehaviour {
 
     // MAIN MENU
     public void ShowMainMenu() {
-        LetterGridGameManager.Instance.PauseGameTime();
         mainMenuPanel.SetActive(true);
         inGameMenuPanel.SetActive(false);
         hudPanel.SetActive(false);

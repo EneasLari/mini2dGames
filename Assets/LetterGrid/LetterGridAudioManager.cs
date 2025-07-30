@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -20,9 +21,10 @@ public class LetterGridAudioManager : MonoBehaviour {
     [SerializeField] private AudioClip tileAddClip;          // Assign in Inspector
 
     [Header("🎉 Event SFX")]
-    [SerializeField] private AudioClip victoryClip;      // Assign in Inspector
+    [SerializeField] private AudioClip levelSuccessClip;      // Assign in Inspector
     [SerializeField] private AudioClip correctMoveClip;  // Assign in Inspector
     [SerializeField] private AudioClip wrongMoveClip;    // Assign in Inspector
+    [SerializeField] private AudioClip tileFlipClip;    // Assign in Inspector
 
     [Header("🔊 Volume Settings")]
     [Range(0f, 1f)][SerializeField] private float musicVolume = 1f;
@@ -31,7 +33,15 @@ public class LetterGridAudioManager : MonoBehaviour {
     [SerializeField] private bool isSFXMuted = false;
     [SerializeField] private bool isAllMuted = false;
 
+    [SerializeField] private float fadeDuration = 1.0f; // How long fades take (seconds)
     private int currentTrackIndex = -1;
+    
+
+    private Coroutine musicFadeCoroutine;
+    private Coroutine duckMusicCoroutine;
+    private bool isFadingMusic = false;
+
+
 
     // --- Unity Events ---
     void Awake() {
@@ -42,16 +52,28 @@ public class LetterGridAudioManager : MonoBehaviour {
         else {
             Destroy(gameObject);
         }
+
+        if (bgMusicSource == sfxSource && bgMusicSource != null) {
+            Debug.LogError("LetterGridAudioManager: bgMusicSource and sfxSource must NOT be the same AudioSource! Please assign different AudioSources for music and SFX.");
+        }
     }
+
+    void OnValidate() {
+        if (bgMusicSource == sfxSource && bgMusicSource != null) {
+            Debug.LogError("LetterGridAudioManager: bgMusicSource and sfxSource must NOT be the same AudioSource! Please assign different AudioSources for music and SFX.");
+        }
+    }
+
 
     void OnEnable() {
         LetterGridGameAudioEvents.OnClick += PlayClick;
         LetterGridGameAudioEvents.OnTileAdded += PlayTileAdd;
-        LetterGridGameAudioEvents.OnStartGame += PlayGameMusic; // NEW
-        LetterGridGameAudioEvents.OnBackToMenu += PlayMenuMusic; // NEW
-        LetterGridGameAudioEvents.OnVictory += PlayVictorySFX;      // NEW
-        LetterGridGameAudioEvents.OnMoveCorrect += PlayCorrectMoveSFX;  // NEW
-        LetterGridGameAudioEvents.OnMoveWrong += PlayWrongMoveSFX;    // NEW
+        LetterGridGameAudioEvents.OnStartGame += PlayGameMusic; 
+        LetterGridGameAudioEvents.OnBackToMenu += PlayMenuMusic; 
+        LetterGridGameAudioEvents.OnLevelSuccess += PlayLevelSuccessSFX;     
+        LetterGridGameAudioEvents.OnMoveCorrect += PlayCorrectMoveSFX;  
+        LetterGridGameAudioEvents.OnMoveWrong += PlayWrongMoveSFX;  
+        LetterGridGameAudioEvents.OnTileFlip += PlayTileFlipSFX;  
         LetterGridGameAudioEvents.OnMusicVolumeChanged += SetMusicVolume;
         LetterGridGameAudioEvents.OnSFXVolumeChanged += SetSFXVolume;
         LetterGridGameAudioEvents.OnMusicMuteChanged += SetMusicMute;
@@ -62,11 +84,12 @@ public class LetterGridAudioManager : MonoBehaviour {
     void OnDisable() {
         LetterGridGameAudioEvents.OnClick -= PlayClick;
         LetterGridGameAudioEvents.OnTileAdded -= PlayTileAdd;
-        LetterGridGameAudioEvents.OnStartGame -= PlayGameMusic; // NEW
-        LetterGridGameAudioEvents.OnBackToMenu -= PlayMenuMusic; // NEW
-        LetterGridGameAudioEvents.OnVictory -= PlayVictorySFX;
+        LetterGridGameAudioEvents.OnStartGame -= PlayGameMusic; 
+        LetterGridGameAudioEvents.OnBackToMenu -= PlayMenuMusic; 
+        LetterGridGameAudioEvents.OnLevelSuccess -= PlayLevelSuccessSFX;
         LetterGridGameAudioEvents.OnMoveCorrect -= PlayCorrectMoveSFX;
         LetterGridGameAudioEvents.OnMoveWrong -= PlayWrongMoveSFX;
+        LetterGridGameAudioEvents.OnTileFlip -= PlayTileFlipSFX;
         LetterGridGameAudioEvents.OnMusicVolumeChanged -= SetMusicVolume;
         LetterGridGameAudioEvents.OnSFXVolumeChanged -= SetSFXVolume;
         LetterGridGameAudioEvents.OnMusicMuteChanged -= SetMusicMute;
@@ -76,7 +99,6 @@ public class LetterGridAudioManager : MonoBehaviour {
 
     private void Start() {
         PlayMenuMusic();
-        UpdateVolumes();
     }
 
 
@@ -95,8 +117,8 @@ public class LetterGridAudioManager : MonoBehaviour {
         UpdateVolumes();
     }
 
-    private void PlayMenuMusic() => PlayMusicByIndex(0); // [0] = menu
-    private void PlayGameMusic() => PlayMusicByIndex(1); // [1] = game
+    private void PlayMenuMusic() => FadeToMusicIndex(0); // [0] = menu
+    private void PlayGameMusic() => FadeToMusicIndex(1); // [1] = game
 
     private void PlayClick() {
         if (sfxSource && clickClip) sfxSource.PlayOneShot(clickClip);
@@ -104,14 +126,25 @@ public class LetterGridAudioManager : MonoBehaviour {
     private void PlayTileAdd() {
         if (sfxSource && tileAddClip) sfxSource.PlayOneShot(tileAddClip);
     }
-    private void PlayVictorySFX() {
-        if (sfxSource && victoryClip) sfxSource.PlayOneShot(victoryClip);
+    private void PlayLevelSuccessSFX() {
+        if (sfxSource && levelSuccessClip) {
+            // Stop any current ducking to avoid overlap
+            if (duckMusicCoroutine != null)
+                StopCoroutine(duckMusicCoroutine);
+
+            duckMusicCoroutine = StartCoroutine(DuckMusicWhileSFX(levelSuccessClip));
+        }
     }
+
     private void PlayCorrectMoveSFX() {
         if (sfxSource && correctMoveClip) sfxSource.PlayOneShot(correctMoveClip);
     }
     private void PlayWrongMoveSFX() {
         if (sfxSource && wrongMoveClip) sfxSource.PlayOneShot(wrongMoveClip);
+    }
+
+    private void PlayTileFlipSFX() {
+        if (sfxSource && tileFlipClip) sfxSource.PlayOneShot(tileFlipClip);
     }
 
     private void SetMusicVolume(float vol) {
@@ -136,6 +169,7 @@ public class LetterGridAudioManager : MonoBehaviour {
     }
 
     private void UpdateVolumes() {
+        if (isFadingMusic) return; // Don't update during a fade!
         float finalMusicVol = isAllMuted || isMusicMuted ? 0f : musicVolume;
         float finalSFXVol = isAllMuted || isSFXMuted ? 0f : sfxVolume;
         if (bgMusicSource) bgMusicSource.volume = finalMusicVol;
@@ -153,5 +187,103 @@ public class LetterGridAudioManager : MonoBehaviour {
         int idx = bgMusicClips.FindIndex(c => c != null && c.name == name);
         if (idx != -1) PlayMusicByIndex(idx);
     }
+
+    private void FadeToMusicIndex(int idx) {
+        // If nothing is playing, fade in only (not out)
+        if (!bgMusicSource.isPlaying || bgMusicSource.clip == null) {
+            StartCoroutine(FadeInMusicCoroutine(idx));
+            return;
+        }
+        if (currentTrackIndex == idx && bgMusicSource.isPlaying) {
+            UpdateVolumes();
+            return;
+        }
+        // Otherwise, fade out/in between tracks
+        if (musicFadeCoroutine != null)
+            StopCoroutine(musicFadeCoroutine);
+
+        musicFadeCoroutine = StartCoroutine(FadeMusicCoroutine(idx));
+    }
+
+    // Simple fade-in on start
+    private IEnumerator FadeInMusicCoroutine(int idx) {
+        isFadingMusic = true;
+        currentTrackIndex = idx;
+        bgMusicSource.clip = bgMusicClips[idx];
+        bgMusicSource.loop = true;
+        bgMusicSource.volume = 0f;
+        bgMusicSource.Play();
+
+        float t = 0f;
+        float targetVol = isAllMuted || isMusicMuted ? 0f : musicVolume;
+        while (t < fadeDuration) {
+            t += Time.deltaTime;
+            bgMusicSource.volume = Mathf.Lerp(0f, targetVol, t / fadeDuration);
+            yield return null;
+        }
+        bgMusicSource.volume = targetVol;
+        isFadingMusic = true;
+    }
+
+
+
+
+    private IEnumerator FadeMusicCoroutine(int newIdx) {
+        isFadingMusic = true;
+        if (bgMusicClips == null || bgMusicClips.Count == 0 || newIdx < 0 || newIdx >= bgMusicClips.Count)
+            yield break;
+
+        if (bgMusicSource == null)
+            yield break;
+
+        // Fade out current music
+        float startVol = bgMusicSource.volume;
+        float targetVol = 0f;
+        float t = 0f;
+
+        while (t < fadeDuration && bgMusicSource.isPlaying) {
+            t += Time.deltaTime;
+            bgMusicSource.volume = Mathf.Lerp(startVol, targetVol, t / fadeDuration);
+            print("VOLUME UPDATED4 ???==>" + bgMusicSource.volume);
+            yield return null;
+        }
+        bgMusicSource.volume = 0f;
+        bgMusicSource.Stop();
+
+        // Switch track and fade in
+        currentTrackIndex = newIdx;
+        bgMusicSource.clip = bgMusicClips[newIdx];
+        bgMusicSource.loop = true;
+        bgMusicSource.Play();
+
+        t = 0f;
+        startVol = 0f;
+        targetVol = isAllMuted || isMusicMuted ? 0f : musicVolume;
+        while (t < fadeDuration) {
+            t += Time.deltaTime;
+            bgMusicSource.volume = Mathf.Lerp(startVol, targetVol, t / fadeDuration);
+            yield return null;
+        }
+        bgMusicSource.volume = targetVol;
+        isFadingMusic = false;
+    }
+
+    private IEnumerator DuckMusicWhileSFX(AudioClip sfxClip) {
+        float prevMusicVol = bgMusicSource ? bgMusicSource.volume : 1f;
+        float sfxLength = sfxClip.length;
+
+        // Instantly mute music (or you can fade out if you want)
+        if (bgMusicSource) bgMusicSource.volume = 0f;
+
+        // Play SFX
+        sfxSource.PlayOneShot(sfxClip);
+
+        // Wait for SFX to finish
+        yield return new WaitForSeconds(sfxLength);
+
+        // Restore music volume only if not muted globally
+        UpdateVolumes();
+    }
+
 }
 

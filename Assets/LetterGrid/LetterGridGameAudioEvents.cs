@@ -10,10 +10,11 @@ public class LetterGridGameAudioEvents : MonoBehaviour {
     public static event Action OnClick;
     public static event Action OnTileAdded;
     public static event Action OnStartGame;
-    public static event Action OnVictory;
+    public static event Action OnLevelSuccess;
     public static event Action OnMoveCorrect;
     public static event Action OnMoveWrong;
     public static event Action OnBackToMenu;
+    public static event Action OnTileFlip;
 
     // ---- Audio settings events ----
     public static event Action<float> OnMusicVolumeChanged;
@@ -23,12 +24,13 @@ public class LetterGridGameAudioEvents : MonoBehaviour {
     public static event Action<bool> OnAllMuteChanged;
 
     // ---- Event Raisers (call from UI/gameplay, never from AudioManager) ----
-    public static void RaiseClick() => OnClick?.Invoke();
+    public static void RaiseButtonClick() => OnClick?.Invoke();
     public static void RaiseTileAdded() => OnTileAdded?.Invoke();
     public static void RaiseStartGame() => OnStartGame?.Invoke();
-    public static void RaiseVictory() => OnVictory?.Invoke();
+    public static void RaiseLevelSuccess() => OnLevelSuccess?.Invoke();
     public static void RaiseMoveCorrect() => OnMoveCorrect?.Invoke();
     public static void RaiseMoveWrong() => OnMoveWrong?.Invoke();
+    public static void RaiseTileFlip() => OnTileFlip?.Invoke();
     public static void RaiseBackToMenu() => OnBackToMenu?.Invoke();
 
     public static void RaiseMusicVolumeChanged(float v) => OnMusicVolumeChanged?.Invoke(v);

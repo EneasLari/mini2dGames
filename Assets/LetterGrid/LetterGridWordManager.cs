@@ -175,6 +175,7 @@ public class LetterGridWordManager : MonoBehaviour {
             score += wordScore;
             scoreDisplayText.text = $"Score: {score}";
             LetterGridGameManager.Instance.gridManager.foundWords.Add(activeWord.ToUpper());
+            LetterGridGameAudioEvents.RaiseMoveCorrect();
 
             if (AllPlacedWordsFound() && !levelComplete) {
                 levelComplete = true;
@@ -182,11 +183,15 @@ public class LetterGridWordManager : MonoBehaviour {
                 return;
             }
         }
+        else {
+            LetterGridGameAudioEvents.RaiseMoveWrong();
+        }
         StartCoroutine(FlashTilesAndReset(flashColor, isValid));
     }
 
     private IEnumerator FlashThenAnimateVictory() {
         yield return StartCoroutine(FlashTilesAndReset(Color.green, true));
+        LetterGridGameAudioEvents.RaiseLevelSuccess();
         yield return StartCoroutine(AnimateGridTiles(revealTileVisuals: false, hideTileVisuals: true, bottomToTop: false, leftToRight: true));
         yield return StartCoroutine(ShowLevelMessage("Round Complete!", 2f));
     }
@@ -286,7 +291,7 @@ public class LetterGridWordManager : MonoBehaviour {
     bool hideTileVisuals=false,
     bool bottomToTop = true,
     bool leftToRight = true,
-    float tileDelay = 0.02f,
+    float tileDelay = 0.1f,
     float punchScale = 1.1f,
     float punchDuration = 0.2f) {
         var grid = LetterGridGameManager.Instance.gridManager;
@@ -308,7 +313,7 @@ public class LetterGridWordManager : MonoBehaviour {
                     CanvasGroup group = tile.GetComponent<CanvasGroup>();
                     if (group != null && revealTileVisuals) group.alpha = 1f;
                     else if (group != null && hideTileVisuals) group.alpha = 0f;
-
+                    LetterGridGameAudioEvents.RaiseTileFlip();
                     RectTransform rt = tile.GetComponent<RectTransform>();
                     StartCoroutine(PunchScale(rt, punchScale, punchDuration));
                     yield return new WaitForSeconds(tileDelay);
