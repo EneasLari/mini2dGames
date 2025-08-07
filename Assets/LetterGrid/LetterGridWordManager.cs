@@ -15,6 +15,7 @@ public class LetterGridWordManager : MonoBehaviour {
     public TMP_Text levelDisplayText;
     public TMP_Text levelMessageText;
     public GameObject levelMessagePanel;
+    public TMP_Text remainingWordsText; // Reference this in the Inspector!
     public Button continueButton;
 
 
@@ -56,7 +57,9 @@ public class LetterGridWordManager : MonoBehaviour {
             bottomToTop: true,
             leftToRight: false
         ));
+        UpdateRemainingWordsDisplay();
     }
+
 
     private void Update() {
         if (isShowingFeedback) return;
@@ -177,23 +180,56 @@ public class LetterGridWordManager : MonoBehaviour {
             LetterGridGameManager.Instance.gridManager.foundWords.Add(activeWord.ToUpper());
             LetterGridGameAudioEvents.RaiseMoveCorrect();
 
-            if (AllPlacedWordsFound() && !levelComplete) {
+            bool finalWord = AllPlacedWordsFound() && !levelComplete;
+            if (finalWord) {
                 levelComplete = true;
-                StartCoroutine(FlashThenAnimateVictory());
-                return;
             }
+            StartCoroutine(FlashTilesAndHandleWordResult(flashColor, isValid, finalWord));
+            return;
         }
         else {
             LetterGridGameAudioEvents.RaiseMoveWrong();
+            StartCoroutine(FlashTilesAndHandleWordResult(flashColor, isValid, false));
         }
-        StartCoroutine(FlashTilesAndReset(flashColor, isValid));
     }
 
-    private IEnumerator FlashThenAnimateVictory() {
-        yield return StartCoroutine(FlashTilesAndReset(Color.green, true));
+    private IEnumerator FlashTilesAndHandleWordResult(Color flashColor, bool isValid, bool isFinalValidWord) {
+        yield return StartCoroutine(FlashTilesAndReset(flashColor, isValid));
+        if (isValid) {
+            UpdateRemainingWordsDisplay();
+            if (isFinalValidWord) {
+                yield return StartCoroutine(HandleRoundVictory());
+            }
+        }
+    }
+
+    private IEnumerator HandleRoundVictory() {
         LetterGridGameAudioEvents.RaiseLevelSuccess();
         yield return StartCoroutine(AnimateGridTiles(revealTileVisuals: false, hideTileVisuals: true, bottomToTop: false, leftToRight: true));
         yield return StartCoroutine(ShowLevelMessage("Round Complete!", 2f));
+    }
+
+
+
+    IEnumerator FlashTilesAndReset(Color flashColor, bool isValid) {
+        isShowingFeedback = true;
+        List<LetterGridLetterTile> tilesToFlash = new List<LetterGridLetterTile>(selectedTiles);
+
+        foreach (var tile in tilesToFlash) {
+            Image img = tile.GetComponent<Image>();
+            Color original = img.color;
+            img.color = flashColor;
+            yield return new WaitForSeconds(0.1f);
+            img.color = original;
+        }
+
+        ClearActiveWord();
+        foreach (var tile in selectedTiles) {
+            tile.Deselect();
+            tile.SetCurrentColor((isValid || tile.LetterData.IsFound) ? LetterGridGameManager.Instance.gridManager.correctColor : LetterGridGameManager.Instance.gridManager.baseColor);
+        }
+        selectedTiles.Clear();
+        isShowingFeedback = false;
     }
 
     private bool AllPlacedWordsFound() {
@@ -204,6 +240,23 @@ public class LetterGridWordManager : MonoBehaviour {
         }
         return true;
     }
+
+    public void UpdateRemainingWordsDisplay() {
+        var placedWords = LetterGridGameManager.Instance.gridManager.placedWords;
+        var foundWords = LetterGridGameManager.Instance.gridManager.foundWords;
+
+        int remainingCount = 0;
+        foreach (var word in placedWords) {
+            if (!foundWords.Contains(word.ToUpper()))
+                remainingCount++;
+        }
+
+        if (remainingWordsText != null) {
+            remainingWordsText.text = $"Words left: {remainingCount}";
+        }
+    }
+
+
 
     public IEnumerator ShowLevelMessage(string message, float duration, bool resetAfterMessage = true) {
         levelMessageText.text = message;
@@ -359,27 +412,6 @@ public class LetterGridWordManager : MonoBehaviour {
     private void ResetDirection() {
         wordDirection = Vector2Int.zero;
         LetterGridGameManager.Instance.gridManager.SmallerTilesTriggerArea();
-    }
-
-    IEnumerator FlashTilesAndReset(Color flashColor, bool isValid) {
-        isShowingFeedback = true;
-        List<LetterGridLetterTile> tilesToFlash = new List<LetterGridLetterTile>(selectedTiles);
-
-        foreach (var tile in tilesToFlash) {
-            Image img = tile.GetComponent<Image>();
-            Color original = img.color;
-            img.color = flashColor;
-            yield return new WaitForSeconds(0.1f);
-            img.color = original;
-        }
-
-        ClearActiveWord();
-        foreach (var tile in selectedTiles) {
-            tile.Deselect();
-            tile.SetCurrentColor((isValid || tile.LetterData.IsFound) ? LetterGridGameManager.Instance.gridManager.correctColor : LetterGridGameManager.Instance.gridManager.baseColor);
-        }
-        selectedTiles.Clear();
-        isShowingFeedback = false;
     }
 
     public void ClearTileSelection() {

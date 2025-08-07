@@ -108,17 +108,53 @@ public class LetterGridManager : MonoBehaviour {
         }
 
 
-        // 🧩 Pick valid words and try to place them
-        List<string> wordsToPlace = GetWordsForGrid(LetterGridGameManager.Instance.minWordsToPlace, LetterGridGameManager.Instance.maxWordsToPlace);
         List<string> successfullyPlaced = new();
+        var directionList = new List<Vector2Int> {
+            new Vector2Int(1, 0),   // horizontal
+            new Vector2Int(0, 1),   // vertical
+            new Vector2Int(1, 1),   // diagonal down-right
+            new Vector2Int(1, -1),  // diagonal up-right
+        };
 
-        foreach (string word in wordsToPlace) {
-            if (TryPlaceWord(word.ToUpper())) {
-                successfullyPlaced.Add(word);
+        // 1. Figure out how many words you want in total
+        int wordCount = Random.Range(LetterGridGameManager.Instance.minWordsToPlace, LetterGridGameManager.Instance.maxWordsToPlace + 1);
+
+        // 2. Evenly split that among directions
+        int numDirections = directionList.Count;
+        int minPerDirection = wordCount / numDirections;
+        int extra = wordCount % numDirections;
+
+        // 3. Prepare available words
+        List<string> candidates = new List<string>();
+        foreach (string word in validWords) {
+            if (word.Length >= LetterGridGameManager.Instance.minWordLength && word.Length <= LetterGridGameManager.Instance.maxWordLength) {
+                candidates.Add(word);
+            }
+        }
+        Shuffle(candidates);
+
+        // 4. For each direction, try to place as many as needed
+        HashSet<string> usedWords = new HashSet<string>();
+        for (int dirIdx = 0; dirIdx < directionList.Count; dirIdx++) {
+            int wordsInThisDir = minPerDirection + (dirIdx < extra ? 1 : 0);
+            Vector2Int dir = directionList[dirIdx];
+
+            int wordsPlaced = 0;
+            for (int i = 0; i < candidates.Count && wordsPlaced < wordsInThisDir; i++) {
+                string word = candidates[i];
+                if (usedWords.Contains(word)) continue;
+                if (TryPlaceWordSpecificDirection(word, dir)) {
+                    successfullyPlaced.Add(word);
+                    usedWords.Add(word);
+                    wordsPlaced++;
+                }
             }
         }
 
+        // If you have more room and not enough words placed, you could optionally fill any direction here
+
         placedWords = new List<string>(successfullyPlaced);
+
 
         // 🔠 Fill empty spots with random letters
         // Place words as usual, then:
@@ -173,6 +209,66 @@ public class LetterGridManager : MonoBehaviour {
         //Debug.Log("✅ Successfully placed words: " + string.Join(", ", successfullyPlaced));
     }
 
+    private bool TryPlaceWordSpecificDirection(string word, Vector2Int dir) {
+        int size = gridSize;
+        var possibilities = new List<Vector2Int>();
+
+        int dx = dir.x, dy = dir.y;
+        int maxX = size, maxY = size;
+
+        // Calculate valid start bounds to avoid going out of grid
+        if (dx == 1 && dy == 0) {  // right
+            maxX = size - word.Length + 1;
+        }
+        else if (dx == 0 && dy == 1) {  // down
+            maxY = size - word.Length + 1;
+        }
+        else if (dx == 1 && dy == 1) {  // diag down-right
+            maxX = size - word.Length + 1;
+            maxY = size - word.Length + 1;
+        }
+        else if (dx == 1 && dy == -1) { // diag up-right
+            maxX = size - word.Length + 1;
+            maxY = word.Length - 1;
+        }
+
+        for (int x = 0; x < maxX; x++) {
+            for (int y = (dy == -1 ? word.Length - 1 : 0); y < (dy == -1 ? size : maxY); y++) {
+                possibilities.Add(new Vector2Int(x, y));
+            }
+        }
+        Shuffle(possibilities);
+
+        foreach (var startPos in possibilities) {
+            Vector2Int pos = startPos;
+            bool canPlace = true;
+
+            // Check
+            foreach (char c in word) {
+                if (letterGrid[pos.x, pos.y].Flag != LetterData.LetterFlag.Random &&
+                    letterGrid[pos.x, pos.y].TileLetter != c) {
+                    canPlace = false;
+                    break;
+                }
+                pos += dir;
+            }
+
+            if (!canPlace) continue;
+
+            // Place
+            pos = startPos;
+            foreach (char c in word) {
+                letterGrid[pos.x, pos.y].SetLetter(c);
+                letterGrid[pos.x, pos.y].Flag = LetterData.LetterFlag.InWord;
+                pos += dir;
+            }
+            return true;
+        }
+
+        return false;
+    }
+
+
     public void ClearGridToPool() {
         // Create a temp list so we don't modify the collection while iterating
         List<GameObject> children = new List<GameObject>();
@@ -200,50 +296,6 @@ public class LetterGridManager : MonoBehaviour {
         }
     }
 
-
-    private bool TryPlaceWord(string word) {
-        Vector2Int[] directions = {
-            new Vector2Int(1, 0),
-            new Vector2Int(0, 1),
-            new Vector2Int(1, 1),
-            new Vector2Int(1, -1)
-        };
-
-        for (int attempt = 0; attempt < 100; attempt++) {
-            Vector2Int startPos = new Vector2Int(Random.Range(0, gridSize), Random.Range(0, gridSize));
-            List<Vector2Int> shuffledDirections = new(directions);
-            Shuffle(shuffledDirections);
-
-            foreach (Vector2Int dir in shuffledDirections) {
-                Vector2Int endPos = startPos + dir * (word.Length - 1);
-                if (endPos.x < 0 || endPos.x >= gridSize || endPos.y < 0 || endPos.y >= gridSize)
-                    continue;
-
-                Vector2Int pos = startPos;
-                bool canPlace = true;
-
-                foreach (char c in word) {
-                    if (letterGrid[pos.x, pos.y].Flag != LetterData.LetterFlag.Random && letterGrid[pos.x, pos.y].TileLetter != c) {
-                        canPlace = false;
-                        break;
-                    }
-                    pos += dir;
-                }
-
-                if (!canPlace) continue;
-
-                pos = startPos;
-                foreach (char c in word) {
-                    letterGrid[pos.x, pos.y].SetLetter(c);
-                    letterGrid[pos.x, pos.y].Flag= LetterData.LetterFlag.InWord;
-                    pos += dir;
-                }
-                return true;
-            }
-        }
-        return false;
-    }
-
     private void Shuffle<T>(IList<T> list) {
         int n = list.Count;
         while (n > 1) {
@@ -253,24 +305,6 @@ public class LetterGridManager : MonoBehaviour {
         }
     }
 
-    private List<string> GetWordsForGrid(int minWords, int maxWords) {
-        List<string> words = new();
-        int wordCount = Random.Range(minWords, maxWords + 1);
-
-        List<string> candidates = new();
-        foreach (string word in validWords) {
-            if (word.Length >= LetterGridGameManager.Instance.minWordLength && word.Length <= LetterGridGameManager.Instance.maxWordLength) {
-                candidates.Add(word);
-            }
-        }
-
-        for (int i = 0; i < wordCount && candidates.Count > 0; i++) {
-            int index = Random.Range(0, candidates.Count);
-            words.Add(candidates[index]);
-            candidates.RemoveAt(index);
-        }
-        return words;
-    }
     public LetterGridLetterTile GetTileAt(int x, int y) {
         int index = x * gridSize + y;
         if (index < 0 || index >= gridParent.childCount)
