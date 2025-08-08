@@ -24,9 +24,17 @@ public class LetterGridGameManager : MonoBehaviour {
     public int maxLevel = 10;
 
     private void Awake() {
-        if (Instance == null || (Instance != null && Instance != this)) Instance = this;
-        else Destroy(gameObject);
+        if (Instance == null) {
+            Instance = this;
+            // If you want it persistent across scenes, uncomment:
+            // DontDestroyOnLoad(gameObject);
+        }
+        else if (Instance != this) {
+            Destroy(gameObject);
+            return;
+        }
     }
+
 
     //private void Start() {
     //    StartNewRoundAtCurrentLevel();

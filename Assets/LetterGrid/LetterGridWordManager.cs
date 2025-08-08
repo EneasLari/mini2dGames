@@ -3,7 +3,6 @@ using UnityEngine.UI;
 using System.Collections.Generic;
 using TMPro;
 using System.Collections;
-using static LetterGridLetterTile;
 using UnityEngine.EventSystems;
 
 public class LetterGridWordManager : MonoBehaviour {

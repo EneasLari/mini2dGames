@@ -47,10 +47,11 @@ public class LetterGridAudioManager : MonoBehaviour {
     void Awake() {
         if (Instance == null) {
             Instance = this;
-            DontDestroyOnLoad(gameObject); // Music persists between scenes
+            DontDestroyOnLoad(gameObject); // music persists
         }
-        else {
+        else if (Instance != this) {
             Destroy(gameObject);
+            return; // <-- skip any further init
         }
 
         if (bgMusicSource == sfxSource && bgMusicSource != null) {
@@ -222,7 +223,7 @@ public class LetterGridAudioManager : MonoBehaviour {
             yield return null;
         }
         bgMusicSource.volume = targetVol;
-        isFadingMusic = true;
+        isFadingMusic = false;
     }
 
 
