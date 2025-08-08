@@ -41,26 +41,24 @@ public class LetterGridManager : MonoBehaviour {
     public HashSet<string> validWords = new HashSet<string>();
     public HashSet<string> foundWords = new HashSet<string>();
 
+    // Cache uppercased banned words and max length once.
+    private HashSet<string> bannedUpper = new();
+    private int maxBannedLen = 0;
+
     // List of words to exclude (case-insensitive)
     public HashSet<string> bannedWords = new HashSet<string> {
             // Violence / Weapons
             "KILL", "GUN", "BOMB", "WAR", "FIGHT", "SHOOT", "MURDER", "DEATH", "VIOLENCE", "TERROR", "ATTACK",
-
             // Drugs / Substances
             "DRUG", "WEED", "COCAINE", "HEROIN", "ALCOHOL", "VODKA", "BEER", "METH", "CIGARETTE", "SMOKE", "POT",
-
             // Sexual Content
             "SEX", "NUDE", "PORN", "NAKED", "RAPE", "MOLEST", "ORGASM", "BDSM", "XXX", "VAGINA", "PENIS", "BREAST",
-
             // Hate / Discrimination
             "NAZI", "HITLER", "RACIST", "RACISM", "HATE", "KLAN", "BIGOT", "SLAVE",
-
             // Suicide / Self-harm
             "SUICIDE", "SELFHARM", "DEPRESS", "CUTTING", "OVERDOSE", "HANG", "DIE",
-
             // Profanity / Inappropriate language
             "HELL", "DAMN", "CRAP", "SHIT", "FUCK", "BITCH", "BASTARD", "ASS", "DICK", "PISS", "COCK", "CUM",
-
             // Other (contextually sensitive)
             "GAMBLE", "CASINO", "SATAN", "DEVIL", "OCCULT", "WITCH", "CURSE"
     };
@@ -92,8 +90,11 @@ public class LetterGridManager : MonoBehaviour {
 
     private void Start() { }
 
+
+
     public LetterData[,] SetupGrid() {
         LoadDictionary();
+        BuildBannedCaches();
         foundWords.Clear();
         return GenerateGrid();
     }
@@ -354,6 +355,9 @@ public class LetterGridManager : MonoBehaviour {
 
         // Place at the first valid start
         foreach (var (start, _) in starts) {
+            // ✅ new guard before placement
+            if (PlacementIntroducesBanned(word, start, dir))
+                continue; // skip this start if it would create a banned substring
             if (PlaceWord(word, start, dir)) {
                 return true;
             }
@@ -368,9 +372,11 @@ public class LetterGridManager : MonoBehaviour {
         Shuffle(starts);
 
         foreach (var start in starts) {
-            if (IsPathValid(word, start.x, start.y, dir, requireAtLeastOneOverlap: false)) {
-                if (PlaceWord(word, start, dir)) return true;
-            }
+            if (!IsPathValid(word, start.x, start.y, dir, requireAtLeastOneOverlap: false))
+                continue;
+            if (PlacementIntroducesBanned(word, start, dir))
+                continue;
+            if (PlaceWord(word, start, dir)) return true;
         }
         return false;
     }
@@ -420,6 +426,96 @@ public class LetterGridManager : MonoBehaviour {
         return true;
     }
 
+    private char GetCharAfterPlacement(int x, int y, string word, Vector2Int start, Vector2Int dir, out bool isInPlacement) {
+        // Check if (x,y) lies on the proposed word path.
+        int dx = x - start.x;
+        int dy = y - start.y;
+
+        // Same line? (parallel to dir) and aligned?
+        isInPlacement = false;
+
+        // Quick reject if not collinear with dir (avoid div-by-zero)
+        if ((dir.x == 0 && dx != 0) || (dir.y == 0 && dy != 0)) {
+            // if dir.x == 0, must move only in y; if dir.y == 0, must move only in x
+        }
+        else {
+            int step = -1;
+            if (dir.x != 0 && dx % dir.x == 0) step = dx / dir.x;
+            else if (dir.y != 0 && dy % dir.y == 0) step = dy / dir.y;
+
+            if (step >= 0 && step < word.Length) {
+                // confirm other axis lines up too
+                int expY = start.y + dir.y * step;
+                int expX = start.x + dir.x * step;
+                if (expX == x && expY == y) {
+                    isInPlacement = true;
+                    return word[step];
+                }
+            }
+        }
+
+        // Otherwise return what's already on the board (or '\0' if nothing meaningful yet)
+        var cell = letterGrid[x, y];
+        return cell.TileLetter; // You already store a char here
+    }
+
+
+
+    private bool PlacementIntroducesBanned(string word, Vector2Int start, Vector2Int dir) {
+        int[] scanDX = { -1, -1, -1, 0, 0, 1, 1, 1 };
+        int[] scanDY = { -1, 0, 1, -1, 1, -1, 0, 1 };
+        // For each cell the new word would occupy:
+        for (int i = 0; i < word.Length; i++) {
+            int cx = start.x + dir.x * i;
+            int cy = start.y + dir.y * i;
+
+            // Check 8 lines that pass through (cx,cy)
+            for (int d = 0; d < 8; d++) {
+                int dx = scanDX[d], dy = scanDY[d];
+
+                // We want to read a contiguous line centered-ish at (cx,cy).
+                // Build a window of up to maxBannedLen*2 to comfortably cover any substring that includes this cell.
+                // Start by walking backwards up to maxBannedLen-1
+                int bx = cx, by = cy;
+                for (int k = 1; k < maxBannedLen; k++) {
+                    int nx = bx - dx, ny = by - dy;
+                    if (nx < 0 || nx >= GridSizeX || ny < 0 || ny >= GridSizeY) break;
+                    bx = nx; by = ny;
+                }
+
+                // Now walk forward, collecting up to maxBannedLen*2 chars (enough to cover any banned substring)
+                var buffer = new StringBuilder();
+                int fx = bx, fy = by;
+                int steps = maxBannedLen * 2;
+
+                for (int step = 0; step < steps; step++) {
+                    if (fx < 0 || fx >= GridSizeX || fy < 0 || fy >= GridSizeY) break;
+
+                    bool _; // unused out
+                    char ch = GetCharAfterPlacement(fx, fy, word, start, dir, out _);
+                    if (ch == '\0') ch = ' '; // ignore empties
+
+                    buffer.Append(char.ToUpperInvariant(ch));
+
+                    // Check all suffixes up to maxBannedLen
+                    int len = buffer.Length;
+                    int maxCheck = Mathf.Min(len, maxBannedLen);
+                    for (int n = 1; n <= maxCheck; n++) {
+                        // skip trailing spaces
+                        string sfx = buffer.ToString(len - n, n).Trim();
+                        if (sfx.Length > 0 && bannedUpper.Contains(sfx)) {
+                            return true; // would create a banned substring
+                        }
+                    }
+
+                    fx += dx; fy += dy;
+                }
+
+                buffer.Clear();
+            }
+        }
+        return false;
+    }
 
     private void Shuffle<T>(IList<T> list) {
         int n = list.Count;
@@ -438,63 +534,49 @@ public class LetterGridManager : MonoBehaviour {
         int[] dx = { -1, -1, -1, 0, 0, 1, 1, 1 };
         int[] dy = { -1, 0, 1, -1, 1, -1, 0, 1 };
 
-        // Precompute the max banned length so we can early-out shorter rays
-        int maxBannedLen = 0;
-        foreach (var w in bannedWords) if (w.Length > maxBannedLen) maxBannedLen = w.Length;
-
-        int maxLen = Mathf.Max(GridSizeX, GridSizeY);
-        var sb = new StringBuilder(maxLen);
+        int rayMax = Mathf.Max(GridSizeX, GridSizeY); // longest possible line
+        var sb = new StringBuilder(rayMax);
 
         for (int x = 0; x < GridSizeX; x++) {
             for (int y = 0; y < GridSizeY; y++) {
                 for (int d = 0; d < 8; d++) {
-
-                    sb.Length = 0; // reset the builder
+                    sb.Length = 0;
                     int cx = x, cy = y;
 
-                    for (int len = 0; len < maxLen; len++) {
-                        if (cx < 0 || cx >= GridSizeX || cy < 0 || cy >= GridSizeY)
-                            break;
+                    for (int step = 0; step < rayMax; step++) {
+                        if (cx < 0 || cx >= GridSizeX || cy < 0 || cy >= GridSizeY) break;
 
-                        // append next char uppercase (bannedWords are uppercase)
+                        // append next char uppercase
                         sb.Append(char.ToUpperInvariant(letterGrid[cx, cy].TileLetter));
 
-                        // Only start checking once we have at least the shortest banned length.
-                        // (If you want, track min banned len too; for now we check from any n up to current len.)
+                        // check suffixes up to cached max length
                         int curLen = sb.Length;
-                        foreach (string banned in bannedWords) {
-                            int n = banned.Length;
-                            if (curLen >= n) {
-                                // last N forward
-                                bool matchFwd = true;
-                                for (int i = 0; i < n; i++) {
-                                    if (sb[curLen - n + i] != banned[i]) { matchFwd = false; break; }
-                                }
-                                if (matchFwd) {
-                                    Debug.LogWarning($"🚫 Found banned word '{banned}' in grid.");
-                                    return true;
-                                }
-
-                                // last N reversed
-                                bool matchRev = true;
-                                for (int i = 0; i < n; i++) {
-                                    if (sb[curLen - 1 - i] != banned[i]) { matchRev = false; break; }
-                                }
-                                if (matchRev) {
-                                    Debug.LogWarning($"🚫 Found banned word '{banned}' in grid (reversed).");
-                                    return true;
-                                }
+                        int maxCheck = Mathf.Min(curLen, maxBannedLen);
+                        for (int n = 1; n <= maxCheck; n++) {
+                            // forward suffix
+                            string sfx = sb.ToString(curLen - n, n);
+                            if (bannedUpper.Contains(sfx)) {
+                                Debug.LogWarning($"🚫 Found banned word '{sfx}' in grid.");
+                                return true;
+                            }
+                            // reversed suffix
+                            bool matchRev = true;
+                            for (int i = 0; i < n; i++) {
+                                if (sb[curLen - 1 - i] != sfx[i]) { matchRev = false; break; }
+                            }
+                            if (matchRev && bannedUpper.Contains(sfx)) {
+                                Debug.LogWarning($"🚫 Found banned word '{sfx}' in grid (reversed).");
+                                return true;
                             }
                         }
 
-                        // Early escape: no banned word is longer than maxBannedLen
-                        if (sb.Length >= maxBannedLen && cx + dx[d] < 0 || cx + dx[d] >= GridSizeX || cy + dy[d] < 0 || cy + dy[d] >= GridSizeY) {
-                            // next step would go out of bounds and we already reached max possible length
+                        // proper grouped early-exit:
+                        int nx = cx + dx[d], ny = cy + dy[d];
+                        if (sb.Length >= maxBannedLen && (nx < 0 || nx >= GridSizeX || ny < 0 || ny >= GridSizeY)) {
                             break;
                         }
 
-                        cx += dx[d];
-                        cy += dy[d];
+                        cx = nx; cy = ny;
                     }
                 }
             }
@@ -502,6 +584,17 @@ public class LetterGridManager : MonoBehaviour {
         return false;
     }
 
+    private void BuildBannedCaches() {
+        bannedUpper.Clear();
+        maxBannedLen = 0;
+        foreach (var w in bannedWords) {
+            var u = w.ToUpperInvariant().Trim();
+            if (string.IsNullOrEmpty(u)) continue;
+            bannedUpper.Add(u);
+            if (u.Length > maxBannedLen) maxBannedLen = u.Length;
+        }
+        if (maxBannedLen == 0) maxBannedLen = 1;
+    }
 
     // TO DO : Dont Call this every time you StartGridManager (only when validWords has no elements and gridSize gets bigger)
     private void LoadDictionary() {
