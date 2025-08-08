@@ -25,6 +25,10 @@ public class LetterGridManager : MonoBehaviour {
     public bool highlightWordTiles = true;
     public Color wordTileColor = new Color(0.5f, 0f, 0.8f, 1f);
 
+    [Header("⚖️ Placement Balancing")]
+    [Tooltip("Minimum number of words that must be placed on diagonals (↘ ↖ ↗ ↙) each round, if possible.")]
+    [SerializeField] private int minDiagonalWords = 2;
+
     public HashSet<string> validWords = new HashSet<string>();
     public HashSet<string> foundWords = new HashSet<string>();
 
@@ -52,14 +56,21 @@ public class LetterGridManager : MonoBehaviour {
             "GAMBLE", "CASINO", "SATAN", "DEVIL", "OCCULT", "WITCH", "CURSE"
     };
 
+    // 8 directions in row-major indexing (x=row increases downward, y=col increases rightward)
+    private static readonly Vector2Int[] AllDirs = {
+        new Vector2Int( 0,  1), // →  right
+        //new Vector2Int( 0, -1), // ←  left
+        new Vector2Int( 1,  0), // ↓  down
+        //new Vector2Int(-1,  0), // ↑  up
+        new Vector2Int( 1,  1), // ↘  down-right
+        //new Vector2Int(-1, -1), // ↖  up-left
+        new Vector2Int(-1,  1), // ↗  up-right
+        //new Vector2Int( 1, -1), // ↙  down-left
+    };
 
-    private void Awake() {
-    }
+    private void Awake() { }
 
-    private void Start() {
-        
-
-    }
+    private void Start() { }
 
     public void StartGridManager() {
         LoadDictionary();
@@ -68,6 +79,7 @@ public class LetterGridManager : MonoBehaviour {
         ClearGridToPool();
         GenerateGrid();
     }
+
 
     private void OnRectTransformDimensionsChange() {
         UpdateGridLayout();
@@ -100,64 +112,114 @@ public class LetterGridManager : MonoBehaviour {
 
     private void GenerateGrid() {
         letterGrid = new LetterData[gridSize, gridSize];
+
         // Initialize grid with empty characters
         for (int i = 0; i < gridSize; i++) {
             for (int j = 0; j < gridSize; j++) {
-                letterGrid[i, j] = new LetterData(i,j);
+                letterGrid[i, j] = new LetterData(i, j);
             }
         }
 
+        // 🧩 Pick valid words we want to place this round
+        int targetCount = Random.Range(LetterGridGameManager.Instance.minWordsToPlace,
+                                       LetterGridGameManager.Instance.maxWordsToPlace + 1);
 
-        List<string> successfullyPlaced = new();
-        var directionList = new List<Vector2Int> {
-            new Vector2Int(1, 0),   // horizontal
-            new Vector2Int(0, 1),   // vertical
-            new Vector2Int(1, 1),   // diagonal down-right
-            new Vector2Int(1, -1),  // diagonal up-right
-        };
-
-        // 1. Figure out how many words you want in total
-        int wordCount = Random.Range(LetterGridGameManager.Instance.minWordsToPlace, LetterGridGameManager.Instance.maxWordsToPlace + 1);
-
-        // 2. Evenly split that among directions
-        int numDirections = directionList.Count;
-        int minPerDirection = wordCount / numDirections;
-        int extra = wordCount % numDirections;
-
-        // 3. Prepare available words
-        List<string> candidates = new List<string>();
-        foreach (string word in validWords) {
-            if (word.Length >= LetterGridGameManager.Instance.minWordLength && word.Length <= LetterGridGameManager.Instance.maxWordLength) {
-                candidates.Add(word);
+        // Filter candidates by length
+        List<string> candidates = new();
+        foreach (var w in validWords) {
+            if (w.Length >= LetterGridGameManager.Instance.minWordLength &&
+                w.Length <= LetterGridGameManager.Instance.maxWordLength) {
+                candidates.Add(w.ToUpper());
             }
         }
         Shuffle(candidates);
 
-        // 4. For each direction, try to place as many as needed
-        HashSet<string> usedWords = new HashSet<string>();
-        for (int dirIdx = 0; dirIdx < directionList.Count; dirIdx++) {
-            int wordsInThisDir = minPerDirection + (dirIdx < extra ? 1 : 0);
-            Vector2Int dir = directionList[dirIdx];
+        // Even split per direction across all 8 directions
+        int numDirs = AllDirs.Length;
+        int basePerDir = targetCount / numDirs;
+        int extra = targetCount % numDirs; // distribute the remainder
 
-            int wordsPlaced = 0;
-            for (int i = 0; i < candidates.Count && wordsPlaced < wordsInThisDir; i++) {
+        int[] quotas = new int[numDirs];
+        for (int i = 0; i < numDirs; i++)
+            quotas[i] = basePerDir + (i < extra ? 1 : 0);
+
+        // 👉 Enforce a minimum number of diagonal words (indices 4..7)
+        EnforceMinimumDiagonal(AllDirs, quotas, Mathf.Min(minDiagonalWords, targetCount), targetCount);
+
+        HashSet<string> used = new();
+        List<string> successfullyPlaced = new();
+
+        // Direction debug counters
+        int cRight = 0, cLeft = 0, cDown = 0, cUp = 0, cDR = 0, cUL = 0, cUR = 0, cDL = 0;
+
+        void BumpDirCounter(Vector2Int dir) {
+            if (dir == new Vector2Int(0, 1)) cRight++;
+            else if (dir == new Vector2Int(0, -1)) cLeft++;
+            else if (dir == new Vector2Int(1, 0)) cDown++;
+            else if (dir == new Vector2Int(-1, 0)) cUp++;
+            else if (dir == new Vector2Int(1, 1)) cDR++;
+            else if (dir == new Vector2Int(-1, -1)) cUL++;
+            else if (dir == new Vector2Int(-1, 1)) cUR++;
+            else if (dir == new Vector2Int(1, -1)) cDL++;
+        }
+
+        // Pass 1: meet quotas per direction — overlap-first, then empty-path
+        for (int d = 0; d < numDirs; d++) {
+            int need = quotas[d];
+            if (need <= 0) continue;
+
+            Vector2Int dir = AllDirs[d];
+
+            for (int i = 0; i < candidates.Count && need > 0; i++) {
                 string word = candidates[i];
-                if (usedWords.Contains(word)) continue;
-                if (TryPlaceWordSpecificDirection(word, dir)) {
+                if (used.Contains(word)) continue;
+
+                bool placed =
+                    TryPlaceWordWithOverlapInDirection(word, dir) ||   // prefer crossing
+                    TryPlaceWordSpecificDirection(word, dir);          // fall back to empty path
+
+                if (placed) {
+                    used.Add(word);
                     successfullyPlaced.Add(word);
-                    usedWords.Add(word);
-                    wordsPlaced++;
+                    need--;
+                    BumpDirCounter(dir);
                 }
             }
         }
 
-        // If you have more room and not enough words placed, you could optionally fill any direction here
+        // Pass 2 (optional): if we didn’t meet targetCount (tight boards), try any direction
+        for (int i = 0; i < candidates.Count && successfullyPlaced.Count < targetCount; i++) {
+            string word = candidates[i];
+            if (used.Contains(word)) continue;
+
+            bool placed = false;
+            Vector2Int placedDir = default;
+
+            // overlap-first across all dirs
+            foreach (var dir in AllDirs) {
+                if (TryPlaceWordWithOverlapInDirection(word, dir)) { placed = true; placedDir = dir; break; }
+            }
+            // then empty-path across all dirs
+            if (!placed) {
+                foreach (var dir in AllDirs) {
+                    if (TryPlaceWordSpecificDirection(word, dir)) { placed = true; placedDir = dir; break; }
+                }
+            }
+
+            if (placed) {
+                used.Add(word);
+                successfullyPlaced.Add(word);
+                BumpDirCounter(placedDir);
+            }
+        }
 
         placedWords = new List<string>(successfullyPlaced);
 
+        // ✅ Debug: words + per-direction counts
+        Debug.Log($"✅ Placed ({placedWords.Count}): {string.Join(", ", placedWords)}");
+        Debug.Log($"Directions →{cRight} ←{cLeft} ↓{cDown} ↑{cUp} ↘{cDR} ↖{cUL} ↗{cUR} ↙{cDL}");
 
-        // 🔠 Fill empty spots with random letters
-        // Place words as usual, then:
+        // 🔠 Fill empty spots with random letters (retry if a banned word sneaks in)
         bool safe = false;
         int attempts = 0;
 
@@ -180,14 +242,9 @@ public class LetterGridManager : MonoBehaviour {
             }
         }
 
-        //if (!safe) {
-        //    Debug.LogError("❌ Max attempts for safe random letter fill reached. Consider adjusting banned word list or grid size.");
-        //    return;
-        //}
-
         // 🧱 Instantiate letter tiles
         for (int i = 0; i < gridSize; i++) {
-            for (int j = 0; j < gridSize; j++) {           
+            for (int j = 0; j < gridSize; j++) {
                 GameObject tile = LetterTilePool.Instance.GetTile(gridParent);
                 CanvasGroup group = tile.GetComponent<CanvasGroup>();
                 if (group == null) group = tile.AddComponent<CanvasGroup>();
@@ -200,74 +257,183 @@ public class LetterGridManager : MonoBehaviour {
                 letterTile.SetCurrentColor(baseColor);
 
                 if (highlightWordTiles &&
-                    letterGrid[i,j].Flag==LetterData.LetterFlag.InWord) {
+                    letterGrid[i, j].Flag == LetterData.LetterFlag.InWord) {
                     letterTile.SetCurrentColor(wordTileColor);
                 }
             }
         }
-
-        //Debug.Log("✅ Successfully placed words: " + string.Join(", ", successfullyPlaced));
     }
 
-    private bool TryPlaceWordSpecificDirection(string word, Vector2Int dir) {
-        int size = gridSize;
-        var possibilities = new List<Vector2Int>();
+    /// <summary>
+    /// Adjusts quotas so that the total assigned to diagonal directions (abs(dx)==1 && abs(dy)==1)
+    /// is at least minDiag, without changing the overall sum. It pulls from non-diagonal buckets
+    /// with the largest quotas. Safe for any size/contents of AllDirs (0..8).
+    /// </summary>
+    private void EnforceMinimumDiagonal(Vector2Int[] dirs, int[] quotas, int minDiag, int totalTarget) {
+        if (dirs == null || quotas == null || quotas.Length != dirs.Length) return;
+        if (totalTarget <= 0 || minDiag <= 0) return;
 
-        int dx = dir.x, dy = dir.y;
-        int maxX = size, maxY = size;
-
-        // Calculate valid start bounds to avoid going out of grid
-        if (dx == 1 && dy == 0) {  // right
-            maxX = size - word.Length + 1;
-        }
-        else if (dx == 0 && dy == 1) {  // down
-            maxY = size - word.Length + 1;
-        }
-        else if (dx == 1 && dy == 1) {  // diag down-right
-            maxX = size - word.Length + 1;
-            maxY = size - word.Length + 1;
-        }
-        else if (dx == 1 && dy == -1) { // diag up-right
-            maxX = size - word.Length + 1;
-            maxY = word.Length - 1;
+        // Identify diagonal and non-diagonal indices dynamically.
+        List<int> diag = new List<int>();
+        List<int> nonDiag = new List<int>();
+        for (int i = 0; i < dirs.Length; i++) {
+            bool isDiagonal = Mathf.Abs(dirs[i].x) == 1 && Mathf.Abs(dirs[i].y) == 1;
+            if (isDiagonal) diag.Add(i); else nonDiag.Add(i);
         }
 
-        for (int x = 0; x < maxX; x++) {
-            for (int y = (dy == -1 ? word.Length - 1 : 0); y < (dy == -1 ? size : maxY); y++) {
-                possibilities.Add(new Vector2Int(x, y));
+        // If there are no diagonals in the active set, nothing to enforce.
+        if (diag.Count == 0) return;
+
+        // Clamp requested minimum to overall target.
+        minDiag = Mathf.Min(minDiag, totalTarget);
+
+        // Current diagonal sum
+        int diagSum = 0;
+        foreach (var idx in diag) diagSum += quotas[idx];
+        if (diagSum >= minDiag) return; // already satisfied
+
+        int deficit = minDiag - diagSum;
+
+        // Move quota from non-diagonals with largest buckets to diagonals with smallest buckets.
+        while (deficit > 0) {
+            // Find best donor among non-diagonals
+            int donor = -1; int donorVal = -1;
+            foreach (var i in nonDiag) {
+                if (quotas[i] > donorVal) { donorVal = quotas[i]; donor = i; }
             }
+            if (donor == -1 || donorVal <= 0) break; // nothing left to steal
+
+            // Find best recipient among diagonals (the one with smallest current quota)
+            int recipient = -1; int recipientVal = int.MaxValue;
+            foreach (var i in diag) {
+                if (quotas[i] < recipientVal) { recipientVal = quotas[i]; recipient = i; }
+            }
+            if (recipient == -1) break; // should not happen
+
+            quotas[donor]--;
+            quotas[recipient]++;
+            deficit--;
         }
-        Shuffle(possibilities);
 
-        foreach (var startPos in possibilities) {
-            Vector2Int pos = startPos;
-            bool canPlace = true;
-
-            // Check
-            foreach (char c in word) {
-                if (letterGrid[pos.x, pos.y].Flag != LetterData.LetterFlag.Random &&
-                    letterGrid[pos.x, pos.y].TileLetter != c) {
-                    canPlace = false;
-                    break;
+        // Safety: keep total equal to target if rounding/stealing failed to match perfectly.
+        int sum = 0; for (int i = 0; i < quotas.Length; i++) sum += quotas[i];
+        int diff = totalTarget - sum;
+        if (diff != 0) {
+            if (diff > 0) {
+                // Add leftover to diagonals first (or anywhere if no diagonals somehow)
+                var pool = diag.Count > 0 ? diag : nonDiag;
+                int p = 0;
+                while (diff > 0 && pool.Count > 0) { quotas[pool[p % pool.Count]]++; diff--; p++; }
+            }
+            else {
+                // Remove extras from non-diagonals first (or diagonals if none)
+                var pool = nonDiag.Count > 0 ? nonDiag : diag;
+                int p = 0;
+                while (diff < 0 && pool.Count > 0) {
+                    int idx = pool[p % pool.Count];
+                    if (quotas[idx] > 0) { quotas[idx]--; diff++; }
+                    p++;
                 }
-                pos += dir;
             }
+        }
+    }
 
-            if (!canPlace) continue;
 
-            // Place
-            pos = startPos;
-            foreach (char c in word) {
-                letterGrid[pos.x, pos.y].SetLetter(c);
-                letterGrid[pos.x, pos.y].Flag = LetterData.LetterFlag.InWord;
-                pos += dir;
+    private bool TryPlaceWordWithOverlapInDirection(string word, Vector2Int dir) {
+        // Scan the board for existing letters that can be used as an anchor
+        // Only consider cells that are NOT random (i.e., already set by previous words)
+        List<(Vector2Int start, int k)> starts = new();
+
+        for (int x = 0; x < gridSize; x++) {
+            for (int y = 0; y < gridSize; y++) {
+                var cell = letterGrid[x, y];
+                if (cell.Flag == LetterData.LetterFlag.Random) continue; // nothing to overlap with
+                char gridC = cell.TileLetter;
+
+                // Try to align each matching letter index of the word to this cell
+                for (int k = 0; k < word.Length; k++) {
+                    if (word[k] != gridC) continue;
+
+                    int sx = x - dir.x * k;
+                    int sy = y - dir.y * k;
+
+                    if (IsPathValid(word, sx, sy, dir, requireAtLeastOneOverlap: true)) {
+                        starts.Add((new Vector2Int(sx, sy), k));
+                    }
+                }
             }
-            return true;
         }
 
+        if (starts.Count == 0) return false;
+        Shuffle(starts);
+
+        // Place at the first valid start
+        foreach (var (start, _) in starts) {
+            if (PlaceWord(word, start, dir)) {
+                return true;
+            }
+        }
         return false;
     }
 
+    private bool TryPlaceWordSpecificDirection(string word, Vector2Int dir) {
+        // Generate all valid start positions for this direction
+        List<Vector2Int> starts = new();
+        GetValidStartsForDirection(word.Length, dir, starts);
+        Shuffle(starts);
+
+        foreach (var start in starts) {
+            if (IsPathValid(word, start.x, start.y, dir, requireAtLeastOneOverlap: false)) {
+                if (PlaceWord(word, start, dir)) return true;
+            }
+        }
+        return false;
+    }
+
+    // ✔ Handles negative steps (dx/dy = -1) correctly
+    private void GetValidStartsForDirection(int wordLen, Vector2Int dir, List<Vector2Int> outList) {
+        outList.Clear();
+        for (int x = 0; x < gridSize; x++) {
+            for (int y = 0; y < gridSize; y++) {
+                int ex = x + dir.x * (wordLen - 1);
+                int ey = y + dir.y * (wordLen - 1);
+                if (ex >= 0 && ex < gridSize && ey >= 0 && ey < gridSize) {
+                    outList.Add(new Vector2Int(x, y));
+                }
+            }
+        }
+    }
+
+
+    private bool IsPathValid(string word, int sx, int sy, Vector2Int dir, bool requireAtLeastOneOverlap) {
+        bool overlapped = false;
+        int x = sx, y = sy;
+
+        for (int i = 0; i < word.Length; i++) {
+            // bounds
+            if (x < 0 || x >= gridSize || y < 0 || y >= gridSize) return false;
+
+            var cell = letterGrid[x, y];
+            if (cell.Flag != LetterData.LetterFlag.Random) {
+                if (cell.TileLetter != word[i]) return false; // conflicting letter
+                overlapped = true;
+            }
+
+            x += dir.x; y += dir.y;
+        }
+        return !requireAtLeastOneOverlap || overlapped;
+    }
+
+    private bool PlaceWord(string word, Vector2Int start, Vector2Int dir) {
+        // After validation, actually stamp letters & flags
+        int x = start.x, y = start.y;
+        for (int i = 0; i < word.Length; i++) {
+            letterGrid[x, y].SetLetter(word[i]);
+            letterGrid[x, y].Flag = LetterData.LetterFlag.InWord;
+            x += dir.x; y += dir.y;
+        }
+        return true;
+    }
 
     public void ClearGridToPool() {
         // Create a temp list so we don't modify the collection while iterating
@@ -278,7 +444,6 @@ public class LetterGridManager : MonoBehaviour {
         foreach (var tile in children)
             LetterTilePool.Instance.ReturnTile(tile);
     }
-
 
     public void ResetTilesTriggerArea() {
         for (int i = 0; i < gridSize; i++) {
@@ -365,14 +530,14 @@ public class LetterGridManager : MonoBehaviour {
         System.Array.Reverse(arr);
         return new string(arr);
     }
-    //TO DO : Dont Call this every time you StartGridManager(only when validword has no elemnts and gridsize gets bigger )
+
+    // TO DO : Dont Call this every time you StartGridManager (only when validWords has no elements and gridSize gets bigger)
     private void LoadDictionary() {
         TextAsset wordFile = Resources.Load<TextAsset>("LetterGrid/wordlist");
         if (wordFile == null) {
             Debug.LogError("wordlist.txt not found in Resources folder!");
             return;
         }
-
 
         string[] words = wordFile.text.Split('\n');
         HashSet<string> filteredWords = new HashSet<string>();

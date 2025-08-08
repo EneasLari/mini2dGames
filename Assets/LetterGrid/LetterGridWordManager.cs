@@ -164,7 +164,15 @@ public class LetterGridWordManager : MonoBehaviour {
     public void ValidateSelectedWord() {
         if (isShowingFeedback || levelComplete) return;
 
-        bool isValid = LetterGridGameManager.Instance.gridManager.validWords.Contains(activeWord) && !LetterGridGameManager.Instance.gridManager.foundWords.Contains(activeWord);
+        var gridManager = LetterGridGameManager.Instance.gridManager;
+        string wordToValidate = activeWord.ToUpperInvariant();
+
+        bool isTarget = gridManager.placedWords.Contains(wordToValidate);
+        bool already = gridManager.foundWords.Contains(wordToValidate);
+
+        // strict targets-only
+        bool isValid = isTarget && !already;
+
         Color flashColor = isValid ? Color.green : Color.red;
 
         if (isValid) {

@@ -245,7 +245,6 @@ public class LetterGridAudioManager : MonoBehaviour {
         while (t < fadeDuration && bgMusicSource.isPlaying) {
             t += Time.deltaTime;
             bgMusicSource.volume = Mathf.Lerp(startVol, targetVol, t / fadeDuration);
-            print("VOLUME UPDATED4 ???==>" + bgMusicSource.volume);
             yield return null;
         }
         bgMusicSource.volume = 0f;
