@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Text;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -6,8 +7,25 @@ using UnityEngine.UI;
 public class LetterGridManager : MonoBehaviour {
 
     [Header("📦 Grid Setup")]
-    public Transform gridParent;
-    public int gridSize = 4;
+    public int GridSizeX = 4;
+    public int GridSizeY = 4;
+
+    [System.Flags]
+    public enum DirectionMask {
+        Right = 1 << 0,  // (0,  1)
+        Left = 1 << 1,  // (0, -1)
+        Down = 1 << 2,  // (1,  0)
+        Up = 1 << 3,  // (-1, 0)
+        DownRight = 1 << 4,  // (1,  1)
+        UpLeft = 1 << 5,  // (-1, -1)
+        UpRight = 1 << 6,  // (-1, 1)
+        DownLeft = 1 << 7,  // (1, -1)
+    }
+
+    [SerializeField]
+    private DirectionMask enabledDirections =  DirectionMask.Right | DirectionMask.Down | DirectionMask.DownRight | DirectionMask.UpRight;
+
+
 
     [HideInInspector]
     public List<string> placedWords = new();
@@ -15,15 +33,6 @@ public class LetterGridManager : MonoBehaviour {
     private LetterData[,] letterGrid;
     private readonly string alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     private const int maxGridAttempts = 10;
-
-    [Header("🎨 Tile Colors")]
-    public Color baseColor = Color.white;
-    public Color correctColor = Color.green;
-    public Color selectedColor = Color.yellow;
-
-    [Header("🛠 Gameplay Settings")]
-    public bool highlightWordTiles = true;
-    public Color wordTileColor = new Color(0.5f, 0f, 0.8f, 1f);
 
     [Header("⚖️ Placement Balancing")]
     [Tooltip("Minimum number of words that must be placed on diagonals (↘ ↖ ↗ ↙) each round, if possible.")]
@@ -56,119 +65,105 @@ public class LetterGridManager : MonoBehaviour {
             "GAMBLE", "CASINO", "SATAN", "DEVIL", "OCCULT", "WITCH", "CURSE"
     };
 
-    // 8 directions in row-major indexing (x=row increases downward, y=col increases rightward)
-    private static readonly Vector2Int[] AllDirs = {
-        new Vector2Int( 0,  1), // →  right
-        //new Vector2Int( 0, -1), // ←  left
-        new Vector2Int( 1,  0), // ↓  down
-        //new Vector2Int(-1,  0), // ↑  up
-        new Vector2Int( 1,  1), // ↘  down-right
-        //new Vector2Int(-1, -1), // ↖  up-left
-        new Vector2Int(-1,  1), // ↗  up-right
-        //new Vector2Int( 1, -1), // ↙  down-left
+
+    private static readonly Dictionary<DirectionMask, Vector2Int> DirMap = new() {
+        { DirectionMask.Right,     new Vector2Int( 0,  1) },
+        { DirectionMask.Left,      new Vector2Int( 0, -1) },
+        { DirectionMask.Down,      new Vector2Int( 1,  0) },
+        { DirectionMask.Up,        new Vector2Int(-1,  0) },
+        { DirectionMask.DownRight, new Vector2Int( 1,  1) },
+        { DirectionMask.UpLeft,    new Vector2Int(-1, -1) },
+        { DirectionMask.UpRight,   new Vector2Int(-1,  1) },
+        { DirectionMask.DownLeft,  new Vector2Int( 1, -1) },
     };
+
+    private Vector2Int[] GetActiveDirections() {
+        var list = new List<Vector2Int>(8);
+        foreach (var kv in DirMap) {
+            if ((enabledDirections & kv.Key) != 0)
+                list.Add(kv.Value);
+        }
+        return list.ToArray();
+    }
+
+
 
     private void Awake() { }
 
     private void Start() { }
 
-    public void StartGridManager() {
+    public LetterData[,] SetupGrid() {
         LoadDictionary();
         foundWords.Clear();
-        UpdateGridLayout();
-        ClearGridToPool();
-        GenerateGrid();
+        return GenerateGrid();
     }
 
-
-    private void OnRectTransformDimensionsChange() {
-        UpdateGridLayout();
-    }
-
-
-    public void UpdateGridLayout() {
-        GridLayoutGroup gridLayout = gridParent.GetComponent<GridLayoutGroup>();
-        RectTransform panelRect = gridParent.parent.GetComponent<RectTransform>();
-
-        gridLayout.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
-        gridLayout.constraintCount = gridSize;
-
-        float width = panelRect.rect.width;
-        float height = panelRect.rect.height;
-
-        float spacingX = gridLayout.spacing.x;
-        float spacingY = gridLayout.spacing.y;
-
-        float totalSpacingX = spacingX * (gridSize - 1);
-        float totalSpacingY = spacingY * (gridSize - 1);
-
-        float availableWidth = width - gridLayout.padding.left - gridLayout.padding.right - totalSpacingX;
-        float availableHeight = height - gridLayout.padding.top - gridLayout.padding.bottom - totalSpacingY;
-
-        float cellSize = Mathf.Min(availableWidth, availableHeight) / gridSize;
-
-        gridLayout.cellSize = new Vector2(cellSize, cellSize);
-    }
-
-    private void GenerateGrid() {
-        letterGrid = new LetterData[gridSize, gridSize];
-
-        // Initialize grid with empty characters
-        for (int i = 0; i < gridSize; i++) {
-            for (int j = 0; j < gridSize; j++) {
+    private LetterData[,] GenerateGrid() {
+        // --- set up board ---
+        letterGrid = new LetterData[GridSizeX, GridSizeY];
+        for (int i = 0; i < GridSizeX; i++) {
+            for (int j = 0; j < GridSizeY; j++) {
                 letterGrid[i, j] = new LetterData(i, j);
             }
         }
 
-        // 🧩 Pick valid words we want to place this round
-        int targetCount = Random.Range(LetterGridGameManager.Instance.minWordsToPlace,
-                                       LetterGridGameManager.Instance.maxWordsToPlace + 1);
+        // --- pick how many words we want this round ---
+        int targetCount = Random.Range(
+            LetterGridGameManager.Instance.minWordsToPlace,
+            LetterGridGameManager.Instance.maxWordsToPlace + 1
+        );
 
-        // Filter candidates by length
+        // --- candidate pool filtered by length ---
         List<string> candidates = new();
         foreach (var w in validWords) {
             if (w.Length >= LetterGridGameManager.Instance.minWordLength &&
                 w.Length <= LetterGridGameManager.Instance.maxWordLength) {
-                candidates.Add(w.ToUpper());
+                candidates.Add(w.ToUpperInvariant());
             }
         }
         Shuffle(candidates);
 
-        // Even split per direction across all 8 directions
-        int numDirs = AllDirs.Length;
-        int basePerDir = targetCount / numDirs;
-        int extra = targetCount % numDirs; // distribute the remainder
+        // If we somehow have fewer candidates than target, cap it.
+        targetCount = Mathf.Min(targetCount, candidates.Count);
+
+        // --- active directions from inspector ---
+        var activeDirs = GetActiveDirections();
+        if (activeDirs == null || activeDirs.Length == 0) {
+            Debug.LogWarning("[Grid] No active directions selected – falling back to → (right).");
+            activeDirs = new[] { new Vector2Int(0, 1) };
+        }
+
+        // --- split a quota per direction ---
+        int numDirs = activeDirs.Length;
+        int basePerDir = (numDirs > 0) ? targetCount / numDirs : 0;
+        int extra = (numDirs > 0) ? targetCount % numDirs : 0;
 
         int[] quotas = new int[numDirs];
         for (int i = 0; i < numDirs; i++)
             quotas[i] = basePerDir + (i < extra ? 1 : 0);
 
-        // 👉 Enforce a minimum number of diagonal words (indices 4..7)
-        EnforceMinimumDiagonal(AllDirs, quotas, Mathf.Min(minDiagonalWords, targetCount), targetCount);
+        // Ensure a minimum number of diagonals from the actually active set.
+        EnforceMinimumDiagonal(activeDirs, quotas, Mathf.Min(minDiagonalWords, targetCount), targetCount);
 
+        // bookkeeping
         HashSet<string> used = new();
         List<string> successfullyPlaced = new();
 
-        // Direction debug counters
-        int cRight = 0, cLeft = 0, cDown = 0, cUp = 0, cDR = 0, cUL = 0, cUR = 0, cDL = 0;
+        // per-direction debug counts
+        var dirCounts = new Dictionary<Vector2Int, int>();
+        foreach (var d in activeDirs) dirCounts[d] = 0;
 
-        void BumpDirCounter(Vector2Int dir) {
-            if (dir == new Vector2Int(0, 1)) cRight++;
-            else if (dir == new Vector2Int(0, -1)) cLeft++;
-            else if (dir == new Vector2Int(1, 0)) cDown++;
-            else if (dir == new Vector2Int(-1, 0)) cUp++;
-            else if (dir == new Vector2Int(1, 1)) cDR++;
-            else if (dir == new Vector2Int(-1, -1)) cUL++;
-            else if (dir == new Vector2Int(-1, 1)) cUR++;
-            else if (dir == new Vector2Int(1, -1)) cDL++;
+        void BumpDirCounter(Vector2Int d) {
+            if (!dirCounts.ContainsKey(d)) dirCounts[d] = 0;
+            dirCounts[d]++;
         }
 
-        // Pass 1: meet quotas per direction — overlap-first, then empty-path
+        // --- Pass 1: satisfy per-direction quotas (prefer overlaps, then empty paths) ---
         for (int d = 0; d < numDirs; d++) {
             int need = quotas[d];
             if (need <= 0) continue;
 
-            Vector2Int dir = AllDirs[d];
+            Vector2Int dir = activeDirs[d];
 
             for (int i = 0; i < candidates.Count && need > 0; i++) {
                 string word = candidates[i];
@@ -187,7 +182,7 @@ public class LetterGridManager : MonoBehaviour {
             }
         }
 
-        // Pass 2 (optional): if we didn’t meet targetCount (tight boards), try any direction
+        // --- Pass 2: if still short, try any direction (same overlap-first policy) ---
         for (int i = 0; i < candidates.Count && successfullyPlaced.Count < targetCount; i++) {
             string word = candidates[i];
             if (used.Contains(word)) continue;
@@ -195,14 +190,16 @@ public class LetterGridManager : MonoBehaviour {
             bool placed = false;
             Vector2Int placedDir = default;
 
-            // overlap-first across all dirs
-            foreach (var dir in AllDirs) {
-                if (TryPlaceWordWithOverlapInDirection(word, dir)) { placed = true; placedDir = dir; break; }
+            foreach (var dir in activeDirs) {
+                if (TryPlaceWordWithOverlapInDirection(word, dir)) {
+                    placed = true; placedDir = dir; break;
+                }
             }
-            // then empty-path across all dirs
             if (!placed) {
-                foreach (var dir in AllDirs) {
-                    if (TryPlaceWordSpecificDirection(word, dir)) { placed = true; placedDir = dir; break; }
+                foreach (var dir in activeDirs) {
+                    if (TryPlaceWordSpecificDirection(word, dir)) {
+                        placed = true; placedDir = dir; break;
+                    }
                 }
             }
 
@@ -215,18 +212,24 @@ public class LetterGridManager : MonoBehaviour {
 
         placedWords = new List<string>(successfullyPlaced);
 
-        // ✅ Debug: words + per-direction counts
+        // --- Debug summary ---
         Debug.Log($"✅ Placed ({placedWords.Count}): {string.Join(", ", placedWords)}");
-        Debug.Log($"Directions →{cRight} ←{cLeft} ↓{cDown} ↑{cUp} ↘{cDR} ↖{cUL} ↗{cUR} ↙{cDL}");
+        if (dirCounts.Count > 0) {
+            // compact per-direction dump
+            var parts = new List<string>();
+            foreach (var kv in dirCounts) {
+                var d = kv.Key;
+                parts.Add($"({d.x},{d.y})={kv.Value}");
+            }
+            Debug.Log("[Dirs] " + string.Join("  ", parts));
+        }
 
-        // 🔠 Fill empty spots with random letters (retry if a banned word sneaks in)
+        // --- Fill remaining cells with random letters, retry if a banned word appears ---
         bool safe = false;
         int attempts = 0;
-
         while (!safe && attempts < maxGridAttempts) {
-            // Fill random letters only
-            for (int i = 0; i < gridSize; i++) {
-                for (int j = 0; j < gridSize; j++) {
+            for (int i = 0; i < GridSizeX; i++) {
+                for (int j = 0; j < GridSizeY; j++) {
                     if (letterGrid[i, j].Flag == LetterData.LetterFlag.Random) {
                         letterGrid[i, j].SetLetter(GetRandomLetter());
                     }
@@ -242,27 +245,9 @@ public class LetterGridManager : MonoBehaviour {
             }
         }
 
-        // 🧱 Instantiate letter tiles
-        for (int i = 0; i < gridSize; i++) {
-            for (int j = 0; j < gridSize; j++) {
-                GameObject tile = LetterTilePool.Instance.GetTile(gridParent);
-                CanvasGroup group = tile.GetComponent<CanvasGroup>();
-                if (group == null) group = tile.AddComponent<CanvasGroup>();
-                group.alpha = 0f;
-
-                tile.GetComponentInChildren<TMP_Text>().text = letterGrid[i, j].TileLetter.ToString();
-
-                LetterGridLetterTile letterTile = tile.GetComponent<LetterGridLetterTile>();
-                letterTile.LetterData = letterGrid[i, j]; // Use prepared LetterData
-                letterTile.SetCurrentColor(baseColor);
-
-                if (highlightWordTiles &&
-                    letterGrid[i, j].Flag == LetterData.LetterFlag.InWord) {
-                    letterTile.SetCurrentColor(wordTileColor);
-                }
-            }
-        }
+        return letterGrid;
     }
+
 
     /// <summary>
     /// Adjusts quotas so that the total assigned to diagonal directions (abs(dx)==1 && abs(dy)==1)
@@ -344,8 +329,8 @@ public class LetterGridManager : MonoBehaviour {
         // Only consider cells that are NOT random (i.e., already set by previous words)
         List<(Vector2Int start, int k)> starts = new();
 
-        for (int x = 0; x < gridSize; x++) {
-            for (int y = 0; y < gridSize; y++) {
+        for (int x = 0; x < GridSizeX; x++) {
+            for (int y = 0; y < GridSizeY; y++) {
                 var cell = letterGrid[x, y];
                 if (cell.Flag == LetterData.LetterFlag.Random) continue; // nothing to overlap with
                 char gridC = cell.TileLetter;
@@ -393,11 +378,11 @@ public class LetterGridManager : MonoBehaviour {
     // ✔ Handles negative steps (dx/dy = -1) correctly
     private void GetValidStartsForDirection(int wordLen, Vector2Int dir, List<Vector2Int> outList) {
         outList.Clear();
-        for (int x = 0; x < gridSize; x++) {
-            for (int y = 0; y < gridSize; y++) {
+        for (int x = 0; x < GridSizeX; x++) {
+            for (int y = 0; y < GridSizeY; y++) {
                 int ex = x + dir.x * (wordLen - 1);
                 int ey = y + dir.y * (wordLen - 1);
-                if (ex >= 0 && ex < gridSize && ey >= 0 && ey < gridSize) {
+                if (ex >= 0 && ex < GridSizeX && ey >= 0 && ey < GridSizeY) {
                     outList.Add(new Vector2Int(x, y));
                 }
             }
@@ -411,7 +396,7 @@ public class LetterGridManager : MonoBehaviour {
 
         for (int i = 0; i < word.Length; i++) {
             // bounds
-            if (x < 0 || x >= gridSize || y < 0 || y >= gridSize) return false;
+            if (x < 0 || x >= GridSizeX || y < 0 || y >= GridSizeY) return false;
 
             var cell = letterGrid[x, y];
             if (cell.Flag != LetterData.LetterFlag.Random) {
@@ -435,31 +420,6 @@ public class LetterGridManager : MonoBehaviour {
         return true;
     }
 
-    public void ClearGridToPool() {
-        // Create a temp list so we don't modify the collection while iterating
-        List<GameObject> children = new List<GameObject>();
-        foreach (Transform child in gridParent)
-            children.Add(child.gameObject);
-
-        foreach (var tile in children)
-            LetterTilePool.Instance.ReturnTile(tile);
-    }
-
-    public void ResetTilesTriggerArea() {
-        for (int i = 0; i < gridSize; i++) {
-            for (int j = 0; j < gridSize; j++) {
-                letterGrid[i, j].ResetTriggerAreaPercentage();
-            }
-        }
-    }
-
-    public void SmallerTilesTriggerArea() {
-        for (int i = 0; i < gridSize; i++) {
-            for (int j = 0; j < gridSize; j++) {
-                letterGrid[i, j].SetSmallerTriggerAreaPercentage();
-            }
-        }
-    }
 
     private void Shuffle<T>(IList<T> list) {
         int n = list.Count;
@@ -470,13 +430,6 @@ public class LetterGridManager : MonoBehaviour {
         }
     }
 
-    public LetterGridLetterTile GetTileAt(int x, int y) {
-        int index = x * gridSize + y;
-        if (index < 0 || index >= gridParent.childCount)
-            return null;
-        return gridParent.GetChild(index).GetComponent<LetterGridLetterTile>();
-    }
-
     private char GetRandomLetter() {
         return alphabet[Random.Range(0, alphabet.Length)];
     }
@@ -485,34 +438,59 @@ public class LetterGridManager : MonoBehaviour {
         int[] dx = { -1, -1, -1, 0, 0, 1, 1, 1 };
         int[] dy = { -1, 0, 1, -1, 1, -1, 0, 1 };
 
-        for (int x = 0; x < gridSize; x++) {
-            for (int y = 0; y < gridSize; y++) {
+        // Precompute the max banned length so we can early-out shorter rays
+        int maxBannedLen = 0;
+        foreach (var w in bannedWords) if (w.Length > maxBannedLen) maxBannedLen = w.Length;
+
+        int maxLen = Mathf.Max(GridSizeX, GridSizeY);
+        var sb = new StringBuilder(maxLen);
+
+        for (int x = 0; x < GridSizeX; x++) {
+            for (int y = 0; y < GridSizeY; y++) {
                 for (int d = 0; d < 8; d++) {
-                    string line = "";
 
-                    int cx = x;
-                    int cy = y;
+                    sb.Length = 0; // reset the builder
+                    int cx = x, cy = y;
 
-                    for (int len = 0; len < gridSize; len++) {
-                        if (cx < 0 || cx >= gridSize || cy < 0 || cy >= gridSize)
+                    for (int len = 0; len < maxLen; len++) {
+                        if (cx < 0 || cx >= GridSizeX || cy < 0 || cy >= GridSizeY)
                             break;
 
-                        line += letterGrid[cx, cy].TileLetter;
+                        // append next char uppercase (bannedWords are uppercase)
+                        sb.Append(char.ToUpperInvariant(letterGrid[cx, cy].TileLetter));
 
-                        string upperLine = line.ToUpper();
-                        string reversedLine = ReverseString(upperLine);
-
-                        // For every banned word, check if the last N letters match, where N is the length of the banned word
+                        // Only start checking once we have at least the shortest banned length.
+                        // (If you want, track min banned len too; for now we check from any n up to current len.)
+                        int curLen = sb.Length;
                         foreach (string banned in bannedWords) {
                             int n = banned.Length;
-                            if (line.Length >= n) {
-                                string lastN = line.Substring(line.Length - n, n).ToUpper();
-                                string lastNReversed = ReverseString(lastN);
-                                if (lastN == banned || lastNReversed == banned) {
-                                    Debug.LogWarning($"🚫 Found banned word '{banned}' in grid: {lastN}");
+                            if (curLen >= n) {
+                                // last N forward
+                                bool matchFwd = true;
+                                for (int i = 0; i < n; i++) {
+                                    if (sb[curLen - n + i] != banned[i]) { matchFwd = false; break; }
+                                }
+                                if (matchFwd) {
+                                    Debug.LogWarning($"🚫 Found banned word '{banned}' in grid.");
+                                    return true;
+                                }
+
+                                // last N reversed
+                                bool matchRev = true;
+                                for (int i = 0; i < n; i++) {
+                                    if (sb[curLen - 1 - i] != banned[i]) { matchRev = false; break; }
+                                }
+                                if (matchRev) {
+                                    Debug.LogWarning($"🚫 Found banned word '{banned}' in grid (reversed).");
                                     return true;
                                 }
                             }
+                        }
+
+                        // Early escape: no banned word is longer than maxBannedLen
+                        if (sb.Length >= maxBannedLen && cx + dx[d] < 0 || cx + dx[d] >= GridSizeX || cy + dy[d] < 0 || cy + dy[d] >= GridSizeY) {
+                            // next step would go out of bounds and we already reached max possible length
+                            break;
                         }
 
                         cx += dx[d];
@@ -521,15 +499,9 @@ public class LetterGridManager : MonoBehaviour {
                 }
             }
         }
-
         return false;
     }
 
-    private string ReverseString(string input) {
-        char[] arr = input.ToCharArray();
-        System.Array.Reverse(arr);
-        return new string(arr);
-    }
 
     // TO DO : Dont Call this every time you StartGridManager (only when validWords has no elements and gridSize gets bigger)
     private void LoadDictionary() {
@@ -544,11 +516,8 @@ public class LetterGridManager : MonoBehaviour {
 
         foreach (string word in words) {
             string cleanWord = word.Trim().ToUpper();
-
-            if (cleanWord.Length >= 3 &&
-                cleanWord.Length <= gridSize &&
-                !bannedWords.Contains(cleanWord)) {
-
+            int boardMax = Mathf.Max(GridSizeX, GridSizeY);
+            if (cleanWord.Length >= 3 && cleanWord.Length <= boardMax && !bannedWords.Contains(cleanWord)) {
                 filteredWords.Add(cleanWord);
             }
         }

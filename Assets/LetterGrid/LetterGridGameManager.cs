@@ -14,6 +14,7 @@ public class LetterGridGameManager : MonoBehaviour {
     [Header("🔗 Manager References")]
     [SerializeField] public LetterGridWordManager wordManager;
     [SerializeField] public LetterGridManager gridManager;
+    [SerializeField] public LetterGridView gridView;
     [SerializeField] public LetterGridTimerManager timerManager;
 
     [Header("🕹 Game State")]
@@ -46,7 +47,8 @@ public class LetterGridGameManager : MonoBehaviour {
     public void StartNewRoundAtCurrentLevel() {
         isGameActive = true;
         UpdateDifficultySettings();
-        gridManager.StartGridManager();
+        var grid=gridManager.SetupGrid();
+        gridView.BuildGridView(grid);
         wordManager.enabled = true;
         
         wordManager.StartWordManager();
@@ -86,17 +88,51 @@ public class LetterGridGameManager : MonoBehaviour {
     /// Sets grid/word difficulty based on currentLevel. 
     /// </summary>
     private void UpdateDifficultySettings() {
-        int cappedLevel = Mathf.Min(currentLevel, maxLevel); // Only use cappedLevel here
+        int L = Mathf.Min(currentLevel, maxLevel);
 
-        int newGridSize = Mathf.Min(4 + (cappedLevel - 1) / 2, 8);
-        int newMinWordLength = Mathf.Min(3 + cappedLevel / 3, newGridSize);
-        int newMaxWordLength = Mathf.Min(5 + cappedLevel / 2, newGridSize);
+        // --- Tunables (easy to tweak) ---
+        const int minRows = 4, minCols = 4;
+        const int maxRows = 12, maxCols = 12;
 
-        gridManager.gridSize = newGridSize;
+        // how fast each dimension grows with level
+        const int levelsPerRowStep = 2;  // every 2 levels, +1 row
+        const int levelsPerColStep = 3;  // every 3 levels, +1 col
+
+        // word length scaling
+        const int baseMinWordLen = 3;    // starts at 3
+        const int baseMaxWordLen = 5;    // starts at 5
+        const int levelsPerMinLenStep = 3;
+        const int levelsPerMaxLenStep = 2;
+
+        // words-to-place scaling
+        const int baseMinWords = 3;
+        const int baseMaxWords = 5;
+        const int maxMinWords = 10;
+        const int maxMaxWords = 14;
+
+        // --- Compute grid size ---
+        int newRows = Mathf.Clamp(minRows + (L - 1) / levelsPerRowStep, minRows, maxRows);
+        int newCols = Mathf.Clamp(minCols + (L - 1) / levelsPerColStep, minCols, maxCols);
+
+        // --- Word lengths (cap by the shorter side) ---
+        int boardMin = Mathf.Min(newRows, newCols);
+        int newMinWordLength = Mathf.Clamp(baseMinWordLen + L / levelsPerMinLenStep, baseMinWordLen, boardMin);
+        int newMaxWordLength = Mathf.Clamp(baseMaxWordLen + L / levelsPerMaxLenStep, newMinWordLength, boardMin);
+
+        // --- Words to place ---
+        int newMinWordsToPlace = Mathf.Clamp(baseMinWords + L / 2, baseMinWords, maxMinWords);
+        int newMaxWordsToPlace = Mathf.Clamp(baseMaxWords + L / 2, newMinWordsToPlace, maxMaxWords);
+
+        // --- Apply ---
+        gridManager.GridSizeX = newCols;
+        gridManager.GridSizeY = newRows;
         minWordLength = newMinWordLength;
         maxWordLength = newMaxWordLength;
-        minWordsToPlace = Mathf.Min(3 + cappedLevel / 2, 8);
-        maxWordsToPlace = Mathf.Min(5 + cappedLevel / 2, 10);
+        minWordsToPlace = newMinWordsToPlace;
+        maxWordsToPlace = newMaxWordsToPlace;
+
+        Debug.Log($"[Difficulty] L{currentLevel}: {newRows}x{newCols}, words {minWordsToPlace}-{maxWordsToPlace}, len {minWordLength}-{maxWordLength}");
     }
+
 
 }

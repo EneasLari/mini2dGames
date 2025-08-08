@@ -11,9 +11,7 @@ public class LetterData {
     public char TileLetter { get; private set; }
     public Vector2Int TilePosition { get; private set; }
 
-    public float CurrentTriggerAreaPercentage { get; private set; } = 1f;
 
-    public float SmallerTriggerAreaPercentage { get; private set; } = 0.7f;
     public bool IsSelected { get; set; } = false;
     public bool IsFound { get; set; } = false;
 
@@ -25,13 +23,7 @@ public class LetterData {
     public void SetLetter(char letter) {
         TileLetter = letter;
     }
-    public void ResetTriggerAreaPercentage() {
-        CurrentTriggerAreaPercentage = 1f;
-    }
 
-    public void SetSmallerTriggerAreaPercentage() {
-        CurrentTriggerAreaPercentage = SmallerTriggerAreaPercentage;
-    }
 }
 
 public class LetterGridLetterTile : MonoBehaviour, IPointerDownHandler, IPointerEnterHandler, ICanvasRaycastFilter {
@@ -40,6 +32,9 @@ public class LetterGridLetterTile : MonoBehaviour, IPointerDownHandler, IPointer
 
     private Image tileImage;
     private TMP_Text tileText;
+    public float CurrentTriggerAreaPercentage { get; private set; } = 1f;
+
+    public float SmallerTriggerAreaPercentage { get; private set; } = 0.7f;
 
     void Awake() {
         tileImage = GetComponent<Image>();
@@ -73,6 +68,14 @@ public class LetterGridLetterTile : MonoBehaviour, IPointerDownHandler, IPointer
         return tileImage.color;
     }
 
+    public void ResetTriggerAreaPercentage() {
+        CurrentTriggerAreaPercentage = 1f;
+    }
+
+    public void SetSmallerTriggerAreaPercentage() {
+        CurrentTriggerAreaPercentage = SmallerTriggerAreaPercentage;
+    }
+
     public void OnPointerDown(PointerEventData eventData) {
         if (LetterGridGameManager.Instance.wordManager.IsShowingFeedback) return;
 
@@ -97,8 +100,8 @@ public class LetterGridLetterTile : MonoBehaviour, IPointerDownHandler, IPointer
         Vector2 pivot = rectTransform.pivot;
         Rect rect = rectTransform.rect;
 
-        float effectiveWidth = rect.width * LetterData.CurrentTriggerAreaPercentage;
-        float effectiveHeight = rect.height * LetterData.CurrentTriggerAreaPercentage;
+        float effectiveWidth = rect.width * CurrentTriggerAreaPercentage;
+        float effectiveHeight = rect.height * CurrentTriggerAreaPercentage;
 
         float xMin = -effectiveWidth / 2f;
         float xMax = effectiveWidth / 2f;

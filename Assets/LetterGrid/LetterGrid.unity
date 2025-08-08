@@ -1624,14 +1624,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 521714d61c3a9974bb1c4c7ed764793a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  gridParent: {fileID: 776972911}
-  gridSize: 6
+  GridSizeX: 4
+  GridSizeY: 4
+  enabledDirections: 85
   placedWords: []
-  baseColor: {r: 1, g: 0.50000006, b: 0, a: 1}
-  correctColor: {r: 0.20392157, g: 0.45490196, b: 0.2, a: 1}
-  selectedColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
-  highlightWordTiles: 1
-  wordTileColor: {r: 0.5, g: 0, b: 0.8, a: 1}
+  minDiagonalWords: 2
 --- !u!4 &718586941
 Transform:
   m_ObjectHideFlags: 0
@@ -1977,6 +1974,57 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 826647319}
   m_CullTransparentMesh: 1
+--- !u!1 &937271508
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 937271510}
+  - component: {fileID: 937271509}
+  m_Layer: 0
+  m_Name: GridViewManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &937271509
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 937271508}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f18dfcf7d0352a845bef231cf4355717, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  gridParent: {fileID: 776972911}
+  baseColor: {r: 0.20392157, g: 0.45490196, b: 0.2, a: 1}
+  correctColor: {r: 0, g: 1, b: 0, a: 1}
+  selectedColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
+  autoUpdateLayoutOnResize: 1
+  highlightWordTiles: 1
+  wordTileColor: {r: 0.5, g: 0, b: 0.8, a: 1}
+--- !u!4 &937271510
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 937271508}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 588.2739, y: 1560.5021, z: -8.156825}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &993941075
 GameObject:
   m_ObjectHideFlags: 0
@@ -4185,6 +4233,7 @@ MonoBehaviour:
   maxWordsToPlace: 5
   wordManager: {fileID: 382662584}
   gridManager: {fileID: 718586940}
+  gridView: {fileID: 937271509}
   timerManager: {fileID: 1400598898}
   maxLevel: 10
 --- !u!4 &1737711840
@@ -4292,3 +4341,4 @@ SceneRoots:
   - {fileID: 221221195}
   - {fileID: 717574394}
   - {fileID: 1558957952}
+  - {fileID: 937271510}

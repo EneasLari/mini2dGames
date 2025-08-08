@@ -106,7 +106,7 @@ public class LetterGridWordManager : MonoBehaviour {
         ClearTileSelection();
         isUserSelecting = true;
         AddTileToWord(firstTile);
-        LetterGridGameManager.Instance.gridManager.SmallerTilesTriggerArea();
+        SmallerTilesTriggerArea();
     }
 
     public void AddTileToWord(LetterGridLetterTile tile) {
@@ -117,13 +117,13 @@ public class LetterGridWordManager : MonoBehaviour {
         wordDisplayText.text = "Word: " + activeWord;
 
         tile.SelectTile();
-        tile.SetCurrentColor(LetterGridGameManager.Instance.gridManager.selectedColor);
+        tile.SetCurrentColor(LetterGridGameManager.Instance.gridView.selectedColor);
 
         if (selectedTiles.Count == 2) {
             Vector2Int firstPos = selectedTiles[0].GetTilePos();
             Vector2Int secondPos = selectedTiles[1].GetTilePos();
             wordDirection = secondPos - firstPos;
-            LetterGridGameManager.Instance.gridManager.ResetTilesTriggerArea();
+            ResetTilesTriggerArea();
         }
         LetterGridGameAudioEvents.RaiseTileAdded();
     }
@@ -233,7 +233,7 @@ public class LetterGridWordManager : MonoBehaviour {
         ClearActiveWord();
         foreach (var tile in selectedTiles) {
             tile.Deselect();
-            tile.SetCurrentColor((isValid || tile.LetterData.IsFound) ? LetterGridGameManager.Instance.gridManager.correctColor : LetterGridGameManager.Instance.gridManager.baseColor);
+            tile.SetCurrentColor((isValid || tile.LetterData.IsFound) ? LetterGridGameManager.Instance.gridView.correctColor : LetterGridGameManager.Instance.gridView.baseColor);
         }
         selectedTiles.Clear();
         isShowingFeedback = false;
@@ -355,19 +355,21 @@ public class LetterGridWordManager : MonoBehaviour {
     float punchScale = 1.1f,
     float punchDuration = 0.2f) {
         var grid = LetterGridGameManager.Instance.gridManager;
-        int size = grid.gridSize;
+        var gridView = LetterGridGameManager.Instance.gridView;
+        int sizeX = grid.GridSizeX;
+        int sizeY = grid.GridSizeY;
 
-        int rowStart = bottomToTop ? size - 1 : 0;
-        int rowEnd = bottomToTop ? -1 : size;
+        int rowStart = bottomToTop ? sizeX - 1 : 0;
+        int rowEnd = bottomToTop ? -1 : sizeX;
         int rowStep = bottomToTop ? -1 : 1;
 
-        int colStart = leftToRight ? 0 : size - 1;
-        int colEnd = leftToRight ? size : -1;
+        int colStart = leftToRight ? 0 : sizeY - 1;
+        int colEnd = leftToRight ? sizeY : -1;
         int colStep = leftToRight ? 1 : -1;
 
         for (int row = rowStart; row != rowEnd; row += rowStep) {
             for (int col = colStart; col != colEnd; col += colStep) {
-                var tile = grid.GetTileAt(row, col);
+                var tile = gridView.GetTileAt(row, col);
                 if (tile != null) {
                     // Reveal tile visuals
                     CanvasGroup group = tile.GetComponent<CanvasGroup>();
@@ -409,7 +411,7 @@ public class LetterGridWordManager : MonoBehaviour {
         wordDisplayText.text = "Word: " + activeWord;
 
         lastTile.Deselect();
-        lastTile.SetCurrentColor(lastTile.LetterData.IsFound ? LetterGridGameManager.Instance.gridManager.correctColor : LetterGridGameManager.Instance.gridManager.baseColor);
+        lastTile.SetCurrentColor(lastTile.LetterData.IsFound ? LetterGridGameManager.Instance.gridView.correctColor : LetterGridGameManager.Instance.gridView.baseColor);
 
         if (selectedTiles.Count == 1) {
             ResetDirection();
@@ -418,7 +420,7 @@ public class LetterGridWordManager : MonoBehaviour {
 
     private void ResetDirection() {
         wordDirection = Vector2Int.zero;
-        LetterGridGameManager.Instance.gridManager.SmallerTilesTriggerArea();
+        SmallerTilesTriggerArea();
     }
 
     public void ClearTileSelection() {
@@ -427,12 +429,36 @@ public class LetterGridWordManager : MonoBehaviour {
         ClearActiveWord();
         foreach (var tile in selectedTiles) {
             tile.Deselect();
-            tile.SetCurrentColor(tile.LetterData.IsFound ? LetterGridGameManager.Instance.gridManager.correctColor : LetterGridGameManager.Instance.gridManager.baseColor);
+            tile.SetCurrentColor(tile.LetterData.IsFound ? LetterGridGameManager.Instance.gridView.correctColor : LetterGridGameManager.Instance.gridView.baseColor);
         }
         selectedTiles.Clear();
         isUserSelecting = false;
         ResetDirection();
-        LetterGridGameManager.Instance.gridManager.ResetTilesTriggerArea();
+        ResetTilesTriggerArea();
+    }
+
+    public void ResetTilesTriggerArea() {
+        var gridView = LetterGridGameManager.Instance.gridView;
+        var grid = LetterGridGameManager.Instance.gridManager;
+        for (int i = 0; i < grid.GridSizeX; i++) {
+            for (int j = 0; j < grid.GridSizeY; j++) {
+                var tile = gridView.GetTileAt(i, j);
+                if (tile != null) 
+                    tile.ResetTriggerAreaPercentage();
+            }
+        }
+    }
+
+    public void SmallerTilesTriggerArea() {
+        var gridView = LetterGridGameManager.Instance.gridView;
+        var grid = LetterGridGameManager.Instance.gridManager;
+        for (int i = 0; i < grid.GridSizeX; i++) {
+            for (int j = 0; j < grid.GridSizeY; j++) {
+                var tile = gridView.GetTileAt(i, j);
+                if (tile != null)
+                    tile.SetSmallerTriggerAreaPercentage();
+            }
+        }
     }
 
     public void ClearActiveWord() {
