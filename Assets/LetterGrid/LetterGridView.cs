@@ -1,9 +1,16 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
 public class LetterGridView : MonoBehaviour {
+
+    public enum GridFitMode {
+        FitToCurrent, // cell size based on current grid size
+        FitToMax      // cell size based on maxCols/maxRows
+    }
+
     [Header("Refs")]
     [SerializeField] private Transform gridParent;
 
@@ -12,14 +19,16 @@ public class LetterGridView : MonoBehaviour {
     [SerializeField] public Color correctColor = Color.green;
     [SerializeField] public Color selectedColor = Color.yellow;
 
-    [Header("Layout")]
+    [Header("Layout Settings")]
     [SerializeField] private bool autoUpdateLayoutOnResize = true;
+    public GridFitMode fitMode = GridFitMode.FitToMax;
     // --- Tunables (easy to tweak) ---
-    public  int minRows = 4, minCols = 4;
-    public  int maxRows = 12, maxCols = 12;
+    public int minRows = 4, minCols = 4;
+    public int maxRows = 12, maxCols = 12;
     private int GridSizeX = 0;
     private int GridSizeY = 0;
     private RectTransform watchedPanelRect;
+    private GridLayoutGroup gridLayout;
     private Vector2 lastSize;
 
 
@@ -38,6 +47,12 @@ public class LetterGridView : MonoBehaviour {
     public void BuildGridView(LetterData[,] letterGrid) {
         if (gridParent == null || letterGrid == null) return;
 
+        gridLayout = gridParent.GetComponent<GridLayoutGroup>();
+        if (gridLayout == null) { 
+            Debug.LogError($"{nameof(GridLayoutGroup)} missing on {gridParent.name}");
+            return;
+        }
+
         EnsureWatchedPanel();      // ← bind to gridParent now
         ForceLayoutPass();         // ← ensure rect is up to date
 
@@ -49,7 +64,7 @@ public class LetterGridView : MonoBehaviour {
         GridSizeY = rows;   // rows
         
 
-        UpdateGridLayout(maxCols, maxRows,GridSizeX,GridSizeY);  // now valid
+        UpdateGridLayout(GridSizeX,GridSizeY);  // now valid
         ClearGridToPool();
 
         for (int r = 0; r < rows; r++) {
@@ -93,14 +108,16 @@ public class LetterGridView : MonoBehaviour {
         Canvas.ForceUpdateCanvases();
     }
 
-    public void UpdateGridLayout(int maxCols, int maxRows, int currenCols,int currentRows) {
-        var gridLayout = gridParent.GetComponent<GridLayoutGroup>();
+    public void UpdateGridLayout(int currentCols, int currentRows) {
+        if (gridLayout == null || watchedPanelRect == null) return;
 
-        currenCols = Mathf.Max(1, currenCols);
+        // Make sure we have at least 1x1
+        currentCols = Mathf.Max(1, currentCols);
         currentRows = Mathf.Max(1, currentRows);
 
+        // Fix column count to match visible grid
         gridLayout.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
-        gridLayout.constraintCount = currenCols;
+        gridLayout.constraintCount = currentCols;
 
         float width = watchedPanelRect.rect.width;
         float height = watchedPanelRect.rect.height;
@@ -108,21 +125,30 @@ public class LetterGridView : MonoBehaviour {
         float spacingX = gridLayout.spacing.x;
         float spacingY = gridLayout.spacing.y;
 
-        float totalSpacingX = spacingX * (currenCols - 1);
-        float totalSpacingY = spacingY * (currentRows - 1);
+        // Decide what "target grid" we're fitting to
+        int fitCols = (fitMode == GridFitMode.FitToMax) ? maxCols : currentCols;
+        int fitRows = (fitMode == GridFitMode.FitToMax) ? maxRows : currentRows;
 
-        float availableWidth = width - gridLayout.padding.left - gridLayout.padding.right - totalSpacingX;
-        float availableHeight = height - gridLayout.padding.top - gridLayout.padding.bottom - totalSpacingY;
+        // Calculate total spacing for the chosen fit size
+        float totalSpacingX = spacingX * Mathf.Max(0, fitCols - 1);
+        float totalSpacingY = spacingY * Mathf.Max(0, fitRows - 1);
 
-        float cellW = availableWidth / maxCols;
-        float cellH = availableHeight / maxRows;
-        float cell = Mathf.Min(cellW, cellH);
+        // Guard the edge cases so cellSize never goes negative/NaN
+        float availW = Mathf.Max(0, width - gridLayout.padding.left - gridLayout.padding.right - totalSpacingX);
+        float availH = Mathf.Max(0, height - gridLayout.padding.top - gridLayout.padding.bottom - totalSpacingY);
 
+        int denomX = Mathf.Max(1, fitCols);
+        int denomY = Mathf.Max(1, fitRows);
+
+        // Square cells
+        float cell = Mathf.Floor(Mathf.Max(1f, Mathf.Min(availW / denomX, availH / denomY)));
         gridLayout.cellSize = new Vector2(cell, cell);
-        print("Cell Size:"+ gridLayout.cellSize);
+
+        // 4) Optional: ensure the *current* smaller grid is centered inside the max footprint.
+        //    Easiest is to set alignment to MiddleCenter on the GridLayoutGroup in the Inspector.
+        //    If you must do it here:
+        gridLayout.childAlignment = TextAnchor.MiddleCenter;
     }
-
-
 
     public void ClearGridToPool() {
         List<GameObject> children = new List<GameObject>();
@@ -147,7 +173,7 @@ public class LetterGridView : MonoBehaviour {
             lastSize = currentSize;
             if (autoUpdateLayoutOnResize) {
                 print("view changed and grid Updated");
-                UpdateGridLayout(maxCols, maxRows, GridSizeX, GridSizeY);
+                UpdateGridLayout(GridSizeX, GridSizeY);
             }
         }
     }

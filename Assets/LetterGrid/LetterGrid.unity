@@ -1701,7 +1701,7 @@ MonoBehaviour:
   m_StartCorner: 0
   m_StartAxis: 0
   m_CellSize: {x: 100, y: 100}
-  m_Spacing: {x: 0, y: 0}
+  m_Spacing: {x: 1, y: 1}
   m_Constraint: 2
   m_ConstraintCount: 4
 --- !u!1 &799279451
@@ -2008,6 +2008,7 @@ MonoBehaviour:
   correctColor: {r: 0, g: 1, b: 0, a: 1}
   selectedColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
   autoUpdateLayoutOnResize: 1
+  fitMode: 1
   minRows: 4
   minCols: 4
   maxRows: 10
@@ -3414,7 +3415,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   timerText: {fileID: 78160942}
-  roundDuration: 60
+  roundDuration: 600
   warningColor: {r: 1, g: 0, b: 0, a: 1}
   warningThreshold: 10
 --- !u!4 &1400598899
