@@ -21,10 +21,9 @@ public class LetterGridView : MonoBehaviour {
 
     [Header("Layout Settings")]
     [SerializeField] private bool autoUpdateLayoutOnResize = true;
-    public GridFitMode fitMode = GridFitMode.FitToMax;
-    // --- Tunables (easy to tweak) ---
     public int minRows = 4, minCols = 4;
     public int maxRows = 12, maxCols = 12;
+    public GridFitMode fitMode = GridFitMode.FitToMax;
     private int GridSizeX = 0;
     private int GridSizeY = 0;
     private RectTransform watchedPanelRect;
@@ -37,16 +36,8 @@ public class LetterGridView : MonoBehaviour {
     public Color wordTileColor = new Color(0.5f, 0f, 0.8f, 1f);
 
 
-
-
-    //private void OnRectTransformDimensionsChange() {
-    //    print("view changed");
-    //    if (autoUpdateLayoutOnResize) UpdateGridLayout(GridSizeX, GridSizeY);
-    //}
-
     public void BuildGridView(LetterData[,] letterGrid) {
         if (gridParent == null || letterGrid == null) return;
-
         gridLayout = gridParent.GetComponent<GridLayoutGroup>();
         if (gridLayout == null) { 
             Debug.LogError($"{nameof(GridLayoutGroup)} missing on {gridParent.name}");
@@ -172,7 +163,6 @@ public class LetterGridView : MonoBehaviour {
         if (currentSize != lastSize) {
             lastSize = currentSize;
             if (autoUpdateLayoutOnResize) {
-                print("view changed and grid Updated");
                 UpdateGridLayout(GridSizeX, GridSizeY);
             }
         }
