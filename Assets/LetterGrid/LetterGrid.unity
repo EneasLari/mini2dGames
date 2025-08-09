@@ -2008,6 +2008,10 @@ MonoBehaviour:
   correctColor: {r: 0, g: 1, b: 0, a: 1}
   selectedColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
   autoUpdateLayoutOnResize: 1
+  minRows: 4
+  minCols: 4
+  maxRows: 10
+  maxCols: 10
   highlightWordTiles: 1
   wordTileColor: {r: 0.5, g: 0, b: 0.8, a: 1}
 --- !u!4 &937271510

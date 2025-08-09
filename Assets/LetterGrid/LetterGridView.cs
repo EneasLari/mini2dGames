@@ -14,20 +14,32 @@ public class LetterGridView : MonoBehaviour {
 
     [Header("Layout")]
     [SerializeField] private bool autoUpdateLayoutOnResize = true;
+    // --- Tunables (easy to tweak) ---
+    public  int minRows = 4, minCols = 4;
+    public  int maxRows = 12, maxCols = 12;
+    private int GridSizeX = 0;
+    private int GridSizeY = 0;
+    private RectTransform watchedPanelRect;
+    private Vector2 lastSize;
+
 
     [Header("🛠 Gameplay Settings")]
     public bool highlightWordTiles = true;
     public Color wordTileColor = new Color(0.5f, 0f, 0.8f, 1f);
 
-    private int GridSizeX = 0;
-    private int GridSizeY = 0;
 
-    private void OnRectTransformDimensionsChange() {
-        if (autoUpdateLayoutOnResize) UpdateGridLayout(GridSizeX, GridSizeY);
-    }
+
+
+    //private void OnRectTransformDimensionsChange() {
+    //    print("view changed");
+    //    if (autoUpdateLayoutOnResize) UpdateGridLayout(GridSizeX, GridSizeY);
+    //}
 
     public void BuildGridView(LetterData[,] letterGrid) {
         if (gridParent == null || letterGrid == null) return;
+
+        EnsureWatchedPanel();      // ← bind to gridParent now
+        ForceLayoutPass();         // ← ensure rect is up to date
 
         // establish sizes first
         int rows = letterGrid.GetLength(0);   // rows
@@ -37,7 +49,7 @@ public class LetterGridView : MonoBehaviour {
         GridSizeY = rows;   // rows
         
 
-        UpdateGridLayout(GridSizeX, GridSizeY);  // now valid
+        UpdateGridLayout(maxCols, maxRows,GridSizeX,GridSizeY);  // now valid
         ClearGridToPool();
 
         for (int r = 0; r < rows; r++) {
@@ -62,34 +74,52 @@ public class LetterGridView : MonoBehaviour {
         }
     }
 
+    private void EnsureWatchedPanel() {
+        if (gridParent == null) return;
+        var rt = gridParent.GetComponent<RectTransform>();
+        if (rt == null) return;
 
-    public void UpdateGridLayout(int cols, int rows) {
+        // Rebind if null or changed
+        if (watchedPanelRect != rt) {
+            watchedPanelRect = rt;
+            lastSize = watchedPanelRect.rect.size;
+        }
+    }
+
+    private void ForceLayoutPass() {
+        if (watchedPanelRect == null) return;
+        // Make sure rect.size is current this frame
+        LayoutRebuilder.ForceRebuildLayoutImmediate(watchedPanelRect);
+        Canvas.ForceUpdateCanvases();
+    }
+
+    public void UpdateGridLayout(int maxCols, int maxRows, int currenCols,int currentRows) {
         var gridLayout = gridParent.GetComponent<GridLayoutGroup>();
-        var panelRect = gridParent.parent.GetComponent<RectTransform>();
 
-        cols = Mathf.Max(1, cols);
-        rows = Mathf.Max(1, rows);
+        currenCols = Mathf.Max(1, currenCols);
+        currentRows = Mathf.Max(1, currentRows);
 
         gridLayout.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
-        gridLayout.constraintCount = cols;
+        gridLayout.constraintCount = currenCols;
 
-        float width = panelRect.rect.width;
-        float height = panelRect.rect.height;
+        float width = watchedPanelRect.rect.width;
+        float height = watchedPanelRect.rect.height;
 
         float spacingX = gridLayout.spacing.x;
         float spacingY = gridLayout.spacing.y;
 
-        float totalSpacingX = spacingX * (cols - 1);
-        float totalSpacingY = spacingY * (rows - 1);
+        float totalSpacingX = spacingX * (currenCols - 1);
+        float totalSpacingY = spacingY * (currentRows - 1);
 
         float availableWidth = width - gridLayout.padding.left - gridLayout.padding.right - totalSpacingX;
         float availableHeight = height - gridLayout.padding.top - gridLayout.padding.bottom - totalSpacingY;
 
-        float cellW = availableWidth / cols;
-        float cellH = availableHeight / rows;
+        float cellW = availableWidth / maxCols;
+        float cellH = availableHeight / maxRows;
         float cell = Mathf.Min(cellW, cellH);
 
         gridLayout.cellSize = new Vector2(cell, cell);
+        print("Cell Size:"+ gridLayout.cellSize);
     }
 
 
@@ -109,5 +139,17 @@ public class LetterGridView : MonoBehaviour {
         return gridParent.GetChild(index).GetComponent<LetterGridLetterTile>();
     }
 
+    private void Update() {
+        if (!autoUpdateLayoutOnResize || watchedPanelRect == null) return;
+
+        Vector2 currentSize = watchedPanelRect.rect.size;
+        if (currentSize != lastSize) {
+            lastSize = currentSize;
+            if (autoUpdateLayoutOnResize) {
+                print("view changed and grid Updated");
+                UpdateGridLayout(maxCols, maxRows, GridSizeX, GridSizeY);
+            }
+        }
+    }
 
 }

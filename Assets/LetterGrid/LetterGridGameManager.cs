@@ -90,10 +90,6 @@ public class LetterGridGameManager : MonoBehaviour {
     private void UpdateDifficultySettings() {
         int L = Mathf.Min(currentLevel, maxLevel);
 
-        // --- Tunables (easy to tweak) ---
-        const int minRows = 4, minCols = 4;
-        const int maxRows = 12, maxCols = 12;
-
         // how fast each dimension grows with level
         const int levelsPerRowStep = 2;  // every 2 levels, +1 row
         const int levelsPerColStep = 3;  // every 3 levels, +1 col
@@ -111,8 +107,8 @@ public class LetterGridGameManager : MonoBehaviour {
         const int maxMaxWords = 14;
 
         // --- Compute grid size ---
-        int newRows = Mathf.Clamp(minRows + (L - 1) / levelsPerRowStep, minRows, maxRows);
-        int newCols = Mathf.Clamp(minCols + (L - 1) / levelsPerColStep, minCols, maxCols);
+        int newRows = Mathf.Clamp(gridView.minRows + (L - 1) / levelsPerRowStep, gridView.minRows, gridView.maxRows);
+        int newCols = Mathf.Clamp(gridView.minCols + (L - 1) / levelsPerColStep, gridView.minCols, gridView.maxCols);
 
         // --- Word lengths (cap by the shorter side) ---
         int boardMin = Mathf.Min(newRows, newCols);
