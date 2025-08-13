@@ -48,7 +48,7 @@ public class LetterGridWordManager : MonoBehaviour {
         continueButton.gameObject.SetActive(false);
         scoreDisplayText.text = $"Score: {score}"; ;
         levelDisplayText.text = $"Level: {LetterGridGameManager.Instance.currentLevel}";
-        wordDisplayText.text = "Word: ";
+        wordDisplayText.text = "";//"Word: ";
         ClearTileSelection();
         StartCoroutine(AnimateGridTiles(
             revealTileVisuals: true,
@@ -114,7 +114,7 @@ public class LetterGridWordManager : MonoBehaviour {
 
         activeWord += tile.GetComponentInChildren<TMP_Text>().text;
         selectedTiles.Add(tile);
-        wordDisplayText.text = "Word: " + activeWord;
+        wordDisplayText.text = activeWord;//"Word: " + activeWord;
 
         tile.SelectTile();
         tile.SetCurrentColor(LetterGridGameManager.Instance.gridView.selectedColor);
@@ -408,7 +408,7 @@ public class LetterGridWordManager : MonoBehaviour {
         LetterGridLetterTile lastTile = selectedTiles[^1];
         selectedTiles.RemoveAt(selectedTiles.Count - 1);
         activeWord = activeWord.Substring(0, activeWord.Length - 1);
-        wordDisplayText.text = "Word: " + activeWord;
+        wordDisplayText.text = activeWord;//"Word: " + activeWord;
 
         lastTile.Deselect();
         lastTile.SetCurrentColor(lastTile.LetterData.IsFound ? LetterGridGameManager.Instance.gridView.correctColor : LetterGridGameManager.Instance.gridView.baseColor);
@@ -463,7 +463,7 @@ public class LetterGridWordManager : MonoBehaviour {
 
     public void ClearActiveWord() {
         activeWord = "";
-        wordDisplayText.text = "Word: ";
+        wordDisplayText.text = "";//"Word: ";
     }
 
 }
