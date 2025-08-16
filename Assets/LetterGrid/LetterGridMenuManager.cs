@@ -3,6 +3,7 @@ using UnityEngine.UI;
 using TMPro;
 public class LetterMenuManager : MonoBehaviour {
     public GameObject mainMenuPanel;
+    public GameObject settingsMenuPanel;
     public GameObject inGameMenuPanel;
     public GameObject hudPanel; // Your main game UI (score, timer, etc.)
 
@@ -10,8 +11,15 @@ public class LetterMenuManager : MonoBehaviour {
     public Button quitButton;
     public Button resumeButton;
     public Button mainMenuButton;
+    public Button backtoMainMenuButton;
     public Button pauseButton;
-    
+    public Button settingsButton;
+
+    public Slider musicVolumeSlider;
+    public Slider sfxVolumeSlider;
+    public Toggle musicMuteToggle;
+    public Toggle sfxMuteToggle;    
+
 
     private bool isPaused = false;
 
@@ -24,9 +32,22 @@ public class LetterMenuManager : MonoBehaviour {
             resumeButton.onClick.AddListener(ResumeGame);
         if (mainMenuButton != null)
             mainMenuButton.onClick.AddListener(ReturnToMainMenu);
+        if (backtoMainMenuButton != null)
+            backtoMainMenuButton.onClick.AddListener(ReturnToMainMenu);
+        if (settingsButton != null)
+            settingsButton.onClick.AddListener(SettingsMenu);
         if (pauseButton != null)
             pauseButton.onClick.AddListener(ShowInGameMenu);
-        
+        if (musicVolumeSlider != null)
+            musicVolumeSlider.onValueChanged.AddListener(LetterGridGameAudioEvents.RaiseMusicVolumeChanged);
+        if (sfxVolumeSlider != null)
+            sfxVolumeSlider.onValueChanged.AddListener(LetterGridGameAudioEvents.RaiseSFXVolumeChanged);
+        if (musicMuteToggle != null)
+            musicMuteToggle.onValueChanged.AddListener(LetterGridGameAudioEvents.RaiseMusicMuteChanged);
+        if (sfxMuteToggle != null)
+            sfxMuteToggle.onValueChanged.AddListener(LetterGridGameAudioEvents.RaiseSFXMuteChanged);
+
+
     }
 
     private void Start() {
@@ -38,6 +59,14 @@ public class LetterMenuManager : MonoBehaviour {
         mainMenuPanel.SetActive(true);
         inGameMenuPanel.SetActive(false);
         hudPanel.SetActive(false);
+        settingsMenuPanel.SetActive(false);
+    }
+
+    public void ShowSettingsMenu() {
+        mainMenuPanel.SetActive(false);
+        inGameMenuPanel.SetActive(false);
+        hudPanel.SetActive(false);
+        settingsMenuPanel.SetActive(true);
     }
 
     // GAME START
@@ -45,6 +74,7 @@ public class LetterMenuManager : MonoBehaviour {
         mainMenuPanel.SetActive(false);
         inGameMenuPanel.SetActive(false);
         hudPanel.SetActive(true);
+        settingsMenuPanel.SetActive(false);
         LetterGridGameAudioEvents.RaiseStartGame();
         LetterGridGameManager.Instance.ResetGameTime();
         LetterGridGameManager.Instance.StartNewRoundAtCurrentLevel();
@@ -72,6 +102,11 @@ public class LetterMenuManager : MonoBehaviour {
     public void ReturnToMainMenu() {
         // You might want to reset game state here
         ShowMainMenu();
+    }
+
+    public void SettingsMenu() {
+        // You might want to reset game state here
+        ShowSettingsMenu();
     }
 
 }
