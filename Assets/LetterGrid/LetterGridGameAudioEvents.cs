@@ -16,6 +16,13 @@ public class LetterGridGameAudioEvents : MonoBehaviour {
     public static event Action OnBackToMenu;
     public static event Action OnTileFlip;
 
+    // ---- Initialization push-back events ----
+    public static event Action<float> OnMusicVolumeInit;
+    public static event Action<float> OnSFXVolumeInit;
+    public static event Action<bool> OnMusicMuteInit;
+    public static event Action<bool> OnSFXMuteInit;
+    public static event Action OnInitRequest;
+
     // ---- Audio settings events ----
     public static event Action<float> OnMusicVolumeChanged;
     public static event Action<float> OnSFXVolumeChanged;
@@ -32,6 +39,15 @@ public class LetterGridGameAudioEvents : MonoBehaviour {
     public static void RaiseMoveWrong() => OnMoveWrong?.Invoke();
     public static void RaiseTileFlip() => OnTileFlip?.Invoke();
     public static void RaiseBackToMenu() => OnBackToMenu?.Invoke();
+
+    // ---- Push request to audio manager to send current settings ----
+    public static void RequestInitSettings() => OnInitRequest?.Invoke();
+
+    // ---- Init value raisers (called by AudioManager only) ----
+    public static void RaiseMusicVolumeInit(float v) => OnMusicVolumeInit?.Invoke(v);
+    public static void RaiseSFXVolumeInit(float v) => OnSFXVolumeInit?.Invoke(v);
+    public static void RaiseMusicMuteInit(bool b) => OnMusicMuteInit?.Invoke(b);
+    public static void RaiseSFXMuteInit(bool b) => OnSFXMuteInit?.Invoke(b);
 
     public static void RaiseMusicVolumeChanged(float v) => OnMusicVolumeChanged?.Invoke(v);
     public static void RaiseSFXVolumeChanged(float v) => OnSFXVolumeChanged?.Invoke(v);

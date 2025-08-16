@@ -80,6 +80,7 @@ public class LetterGridAudioManager : MonoBehaviour {
         LetterGridGameAudioEvents.OnMusicMuteChanged += SetMusicMute;
         LetterGridGameAudioEvents.OnSFXMuteChanged += SetSFXMute;
         LetterGridGameAudioEvents.OnAllMuteChanged += SetAllMute;
+        LetterGridGameAudioEvents.OnInitRequest += SendInitialSettingsState;
     }
 
     void OnDisable() {
@@ -96,6 +97,7 @@ public class LetterGridAudioManager : MonoBehaviour {
         LetterGridGameAudioEvents.OnMusicMuteChanged -= SetMusicMute;
         LetterGridGameAudioEvents.OnSFXMuteChanged -= SetSFXMute;
         LetterGridGameAudioEvents.OnAllMuteChanged -= SetAllMute;
+        LetterGridGameAudioEvents.OnInitRequest -= SendInitialSettingsState;
     }
 
     private void Start() {
@@ -175,6 +177,13 @@ public class LetterGridAudioManager : MonoBehaviour {
         float finalSFXVol = isAllMuted || isSFXMuted ? 0f : sfxVolume;
         if (bgMusicSource) bgMusicSource.volume = finalMusicVol;
         if (sfxSource) sfxSource.volume = finalSFXVol;
+    }
+
+    private void SendInitialSettingsState() {
+        LetterGridGameAudioEvents.RaiseMusicVolumeInit(musicVolume);
+        LetterGridGameAudioEvents.RaiseSFXVolumeInit(sfxVolume);
+        LetterGridGameAudioEvents.RaiseMusicMuteInit(isMusicMuted);
+        LetterGridGameAudioEvents.RaiseSFXMuteInit(isSFXMuted);
     }
 
     // --- Optionally, you can keep StopMusic private or remove if not used by events ---

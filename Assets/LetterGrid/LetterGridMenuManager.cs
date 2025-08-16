@@ -54,6 +54,27 @@ public class LetterMenuManager : MonoBehaviour {
         ShowMainMenu();
     }
 
+    private void OnEnable() {
+        // Subscribe to init values from the AudioManager
+        LetterGridGameAudioEvents.OnMusicVolumeInit += HandleMusicVolumeInit;
+        LetterGridGameAudioEvents.OnSFXVolumeInit += HandleSFXVolumeInit;
+        LetterGridGameAudioEvents.OnMusicMuteInit += HandleMusicMuteInit;
+        LetterGridGameAudioEvents.OnSFXMuteInit += HandleSFXMuteInit;
+    }
+
+    private void OnDisable() {
+        // Unsubscribe
+        LetterGridGameAudioEvents.OnMusicVolumeInit -= HandleMusicVolumeInit;
+        LetterGridGameAudioEvents.OnSFXVolumeInit -= HandleSFXVolumeInit;
+        LetterGridGameAudioEvents.OnMusicMuteInit -= HandleMusicMuteInit;
+        LetterGridGameAudioEvents.OnSFXMuteInit -= HandleSFXMuteInit;
+    }
+
+    private void HandleMusicVolumeInit(float v) => musicVolumeSlider.value = v;
+    private void HandleSFXVolumeInit(float v) => sfxVolumeSlider.value = v;
+    private void HandleMusicMuteInit(bool b) => musicMuteToggle.isOn = b;
+    private void HandleSFXMuteInit(bool b) => sfxMuteToggle.isOn = b;
+
     // MAIN MENU
     public void ShowMainMenu() {
         mainMenuPanel.SetActive(true);
@@ -106,7 +127,8 @@ public class LetterMenuManager : MonoBehaviour {
 
     public void SettingsMenu() {
         // You might want to reset game state here
-        ShowSettingsMenu();
+        ShowSettingsMenu();\
+        LetterGridGameAudioEvents.RequestInitSettings();
     }
 
 }
