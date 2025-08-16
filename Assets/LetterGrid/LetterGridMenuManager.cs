@@ -127,7 +127,7 @@ public class LetterMenuManager : MonoBehaviour {
 
     public void SettingsMenu() {
         // You might want to reset game state here
-        ShowSettingsMenu();\
+        ShowSettingsMenu();
         LetterGridGameAudioEvents.RequestInitSettings();
     }
 
