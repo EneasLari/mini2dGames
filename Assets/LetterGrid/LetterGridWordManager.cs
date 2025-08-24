@@ -18,6 +18,12 @@ public class LetterGridWordManager : MonoBehaviour {
     public Button continueButton;
 
 
+    [Header("✏️ Simple Selection Line")]
+    [SerializeField] private Sprite selectionLineSprite; // assign ONLY this in Inspector
+    [SerializeField] private float lineThickness = 8f;   // optional tweak
+    [SerializeField] private Color lineColor = Color.white; // optional
+
+
     [Header("📈 Scoring & Word State")]
     private List<LetterGridLetterTile> selectedTiles = new List<LetterGridLetterTile>();
 
@@ -29,6 +35,8 @@ public class LetterGridWordManager : MonoBehaviour {
     private Vector2Int wordDirection;
     private bool levelComplete = false;
 
+    private Image _currentLine;                // the line for the active selection
+    private readonly List<Image> _finalLines = new(); // all finalized lines (valid words)
 
     public bool IsShowingFeedback => isShowingFeedback;
     public bool IsUserSelecting => isUserSelecting;
@@ -107,6 +115,7 @@ public class LetterGridWordManager : MonoBehaviour {
         isUserSelecting = true;
         AddTileToWord(firstTile);
         SmallerTilesTriggerArea();
+        UpdateCurrentLine();
     }
 
     public void AddTileToWord(LetterGridLetterTile tile) {
@@ -126,6 +135,7 @@ public class LetterGridWordManager : MonoBehaviour {
             ResetTilesTriggerArea();
         }
         LetterGridGameAudioEvents.RaiseTileAdded();
+        UpdateCurrentLine();
     }
 
     public void TrySelectHoveredTile(LetterGridLetterTile tile) {
@@ -161,6 +171,97 @@ public class LetterGridWordManager : MonoBehaviour {
         return newPos == lastPos + wordDirection;
     }
 
+    private Image CreateLineUnder(Transform gridParent) {
+        Image lineUnder; // created on demand
+        if (selectionLineSprite == null)
+            return null;
+
+        var go = new GameObject("SelectionLine", typeof(RectTransform));
+        var rt = go.GetComponent<RectTransform>();
+        rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+        rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.sizeDelta = new Vector2(0f, lineThickness);
+
+        lineUnder = go.AddComponent<Image>();
+        lineUnder.sprite = selectionLineSprite;
+        lineUnder.type = Image.Type.Simple;    // keep it simple
+        lineUnder.color = lineColor;
+        lineUnder.raycastTarget = false;
+        lineUnder.enabled = false;
+
+        rt.SetParent(gridParent.parent, false);
+        go.transform.SetSiblingIndex(gridParent.GetSiblingIndex()); // before grid
+
+        return lineUnder;
+    }
+
+    private void UpdateCurrentLine() {
+        // Need at least two tiles to have a length
+        if (selectedTiles == null || selectedTiles.Count < 2) {
+            if (_currentLine != null) _currentLine.enabled = false;
+            return;
+        }
+
+        Transform tilesParent = selectedTiles[0].transform.parent;//gridParent
+        if (_currentLine == null)
+            _currentLine = CreateLineUnder(tilesParent);
+
+        var lineRT = _currentLine.rectTransform;
+        var containerRT = (RectTransform)_currentLine.rectTransform.parent; // same parent as gridParent.parent
+
+        var parentCanvas = containerRT.GetComponentInParent<Canvas>();
+        Camera uiCam = (parentCanvas != null && parentCanvas.renderMode != RenderMode.ScreenSpaceOverlay)
+            ? parentCanvas.worldCamera
+            : null;
+
+        RectTransform aRT = selectedTiles[0].GetComponent<RectTransform>();
+        RectTransform bRT = selectedTiles[^1].GetComponent<RectTransform>();
+
+        Vector2 sa = RectTransformUtility.WorldToScreenPoint(uiCam, aRT.position);
+        Vector2 sb = RectTransformUtility.WorldToScreenPoint(uiCam, bRT.position);
+        RectTransformUtility.ScreenPointToLocalPointInRectangle(containerRT, sa, uiCam, out var la);
+        RectTransformUtility.ScreenPointToLocalPointInRectangle(containerRT, sb, uiCam, out var lb);
+
+        Vector2 dir = lb - la;
+        float length = dir.magnitude;
+        if (length < 0.01f) { _currentLine.enabled = false; return; }
+
+        Vector2 mid = (la + lb) * 0.5f;
+        float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
+
+        lineRT.anchoredPosition = mid;
+        lineRT.localRotation = Quaternion.Euler(0, 0, angle);
+        lineRT.sizeDelta = new Vector2(length, lineThickness);
+        _currentLine.enabled = true;
+    }
+
+
+    // Commit the current line if valid; otherwise discard it.
+    private void FinalizeOrDiscardCurrentLine(bool isValid) {
+        if (_currentLine == null) return;
+
+        if (isValid) {
+            _currentLine.enabled = true;
+            _finalLines.Add(_currentLine);
+            print(_finalLines.Count);
+            _currentLine = null; // next selection will create a NEW line
+        } else {
+            Destroy(_currentLine.gameObject); // wrong word => remove preview line
+            _currentLine = null;
+        }
+    }
+
+    private void DestroyAllLines() {
+        if (_currentLine != null) {
+            Destroy(_currentLine.gameObject);
+            _currentLine = null;
+        }
+        for (int i = 0; i < _finalLines.Count; i++) {
+            if (_finalLines[i] != null) Destroy(_finalLines[i].gameObject);
+        }
+        _finalLines.Clear();
+    }
+
     public void ValidateSelectedWord() {
         if (isShowingFeedback || levelComplete) return;
 
@@ -186,18 +287,17 @@ public class LetterGridWordManager : MonoBehaviour {
             scoreDisplayText.text = $"Score: {score}";
             LetterGridGameManager.Instance.gridManager.foundWords.Add(activeWord.ToUpper());
             LetterGridGameAudioEvents.RaiseMoveCorrect();
-
-            bool finalWord = AllPlacedWordsFound() && !levelComplete;
-            if (finalWord) {
-                levelComplete = true;
-            }
-            StartCoroutine(FlashTilesAndHandleWordResult(flashColor, isValid, finalWord));
-            return;
         }
         else {
             LetterGridGameAudioEvents.RaiseMoveWrong();
-            StartCoroutine(FlashTilesAndHandleWordResult(flashColor, isValid, false));
         }
+        bool finalWord = AllPlacedWordsFound() && !levelComplete;
+        if (finalWord) {
+            levelComplete = true;
+        }
+        // ✅ keep a new line if valid; ❌ remove the preview line if invalid
+        FinalizeOrDiscardCurrentLine(isValid);
+        StartCoroutine(FlashTilesAndHandleWordResult(flashColor, isValid, finalWord));
     }
 
     private IEnumerator FlashTilesAndHandleWordResult(Color flashColor, bool isValid, bool isFinalValidWord) {
@@ -205,6 +305,7 @@ public class LetterGridWordManager : MonoBehaviour {
         if (isValid) {
             UpdateRemainingWordsDisplay();
             if (isFinalValidWord) {
+                DestroyAllLines();
                 yield return StartCoroutine(HandleRoundVictory());
             }
         }
@@ -416,6 +517,7 @@ public class LetterGridWordManager : MonoBehaviour {
         if (selectedTiles.Count == 1) {
             ResetDirection();
         }
+        UpdateCurrentLine();
     }
 
     private void ResetDirection() {
@@ -435,6 +537,7 @@ public class LetterGridWordManager : MonoBehaviour {
         isUserSelecting = false;
         ResetDirection();
         ResetTilesTriggerArea();
+
     }
 
     public void ResetTilesTriggerArea() {
