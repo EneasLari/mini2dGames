@@ -44,7 +44,7 @@ public class LetterGridTimerManager : MonoBehaviour {
 
     private void UpdateTimerUI() {
         int displayTime = Mathf.CeilToInt(timeLeft);
-        timerText.text = $"Time: {displayTime}";
+        timerText.text = $"{displayTime}";
 
         if (timeLeft <= warningThreshold) {
             timerText.color = warningColor;
@@ -56,7 +56,7 @@ public class LetterGridTimerManager : MonoBehaviour {
 
     private void EndRound() {
         isTimerActive = false;
-        timerText.text = "Time: 0";
+        timerText.text = "0";
 
         // ✅ Use centralized game end logic
         LetterGridGameManager.Instance.EndGame("Time's up! Try again.");

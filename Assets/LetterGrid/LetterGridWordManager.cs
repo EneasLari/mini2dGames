@@ -54,8 +54,8 @@ public class LetterGridWordManager : MonoBehaviour {
     public void StartWordManager() {
         levelComplete = false;
         continueButton.gameObject.SetActive(false);
-        scoreDisplayText.text = $"Score: {score}"; ;
-        levelDisplayText.text = $"Level: {LetterGridGameManager.Instance.currentLevel}";
+        scoreDisplayText.text = $"{score}"; ;
+        levelDisplayText.text = $"{LetterGridGameManager.Instance.currentLevel}";
         wordDisplayText.text = "";//"Word: ";
         ClearTileSelection();
         StartCoroutine(AnimateGridTiles(
@@ -284,7 +284,7 @@ public class LetterGridWordManager : MonoBehaviour {
                 else if (tile.LetterData.Type == LetterData.LetterType.TripleWord) wordScore *= 3;
             }
             score += wordScore;
-            scoreDisplayText.text = $"Score: {score}";
+            scoreDisplayText.text = $"{score}";
             LetterGridGameManager.Instance.gridManager.foundWords.Add(activeWord.ToUpper());
             LetterGridGameAudioEvents.RaiseMoveCorrect();
         }
@@ -360,7 +360,7 @@ public class LetterGridWordManager : MonoBehaviour {
         }
 
         if (remainingWordsText != null) {
-            remainingWordsText.text = $"Words left: {remainingCount}";
+            remainingWordsText.text = $"{remainingCount}";
         }
     }
 
