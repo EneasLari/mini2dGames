@@ -14,14 +14,14 @@ public class LetterGridWordManager : MonoBehaviour {
     public TMP_Text levelDisplayText;
     public TMP_Text levelMessageText;
     public GameObject levelMessagePanel;
-    public TMP_Text remainingWordsText; // Reference this in the Inspector!
+    public TMP_Text remainingWordsText;
     public Button continueButton;
 
 
     [Header("✏️ Simple Selection Line")]
     [SerializeField] private Sprite selectionLineSprite; // assign ONLY this in Inspector
-    [SerializeField] private float lineThickness = 8f;   // optional tweak
-    [SerializeField] private Color lineColor = Color.white; // optional
+    [SerializeField] private float lineThickness = 20f;   // optional tweak
+    [SerializeField] private Color lineColor = Color.green; // optional
 
 
     [Header("📈 Scoring & Word State")]
@@ -58,6 +58,7 @@ public class LetterGridWordManager : MonoBehaviour {
         levelDisplayText.text = $"{LetterGridGameManager.Instance.currentLevel}";
         wordDisplayText.text = "";//"Word: ";
         ClearTileSelection();
+        DestroyAllLines();
         StartCoroutine(AnimateGridTiles(
             revealTileVisuals: true,
             hideTileVisuals: false,
@@ -76,8 +77,13 @@ public class LetterGridWordManager : MonoBehaviour {
 
         if (isUserSelecting && (mouseReleased || touchReleased)) {
             isUserSelecting = false;
-            if (activeWord.Length >= 3) ValidateSelectedWord();
-            else ClearTileSelection();
+            if (activeWord.Length >= 3) 
+                ValidateSelectedWord();
+            else {
+                FinalizeOrDiscardCurrentLine(false);
+                ClearTileSelection();
+            }
+                
         }
 
         if (isUserSelecting && Input.touchCount > 0) {
@@ -115,7 +121,6 @@ public class LetterGridWordManager : MonoBehaviour {
         isUserSelecting = true;
         AddTileToWord(firstTile);
         SmallerTilesTriggerArea();
-        UpdateCurrentLine();
     }
 
     public void AddTileToWord(LetterGridLetterTile tile) {
@@ -141,7 +146,7 @@ public class LetterGridWordManager : MonoBehaviour {
     public void TrySelectHoveredTile(LetterGridLetterTile tile) {
         if ((Input.GetMouseButton(0) || Input.touchCount > 0) && isUserSelecting && !isShowingFeedback) {
             if (selectedTiles.Count > 1 && tile == selectedTiles[^2]) {
-                UndoLastTile();
+                UndoLastTile();                
                 return;
             }
 
@@ -243,7 +248,6 @@ public class LetterGridWordManager : MonoBehaviour {
         if (isValid) {
             _currentLine.enabled = true;
             _finalLines.Add(_currentLine);
-            print(_finalLines.Count);
             _currentLine = null; // next selection will create a NEW line
         } else {
             Destroy(_currentLine.gameObject); // wrong word => remove preview line
@@ -448,13 +452,14 @@ public class LetterGridWordManager : MonoBehaviour {
 
 
     public IEnumerator AnimateGridTiles(
-    bool revealTileVisuals= false,
-    bool hideTileVisuals=false,
-    bool bottomToTop = true,
-    bool leftToRight = true,
-    float tileDelay = 0.1f,
-    float punchScale = 1.1f,
-    float punchDuration = 0.2f) {
+            bool revealTileVisuals= false,
+            bool hideTileVisuals=false,
+            bool bottomToTop = true,
+            bool leftToRight = true,
+            float tileDelay = 0.1f,
+            float punchScale = 1.1f,
+            float punchDuration = 0.2f) 
+    {
         var grid = LetterGridGameManager.Instance.gridManager;
         var gridView = LetterGridGameManager.Instance.gridView;
         int sizeX = grid.GridSizeX;
@@ -513,11 +518,11 @@ public class LetterGridWordManager : MonoBehaviour {
 
         lastTile.Deselect();
         lastTile.SetCurrentColor(lastTile.LetterData.IsFound ? LetterGridGameManager.Instance.gridView.correctColor : LetterGridGameManager.Instance.gridView.baseColor);
+        UpdateCurrentLine();
 
         if (selectedTiles.Count == 1) {
             ResetDirection();
-        }
-        UpdateCurrentLine();
+        }        
     }
 
     private void ResetDirection() {
