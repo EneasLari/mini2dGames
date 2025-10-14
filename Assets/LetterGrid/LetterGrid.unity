@@ -4861,8 +4861,9 @@ MonoBehaviour:
   bgMusicSource: {fileID: 1344839471}
   sfxSource: {fileID: 1452368736}
   bgMusicClips:
-  - {fileID: 8300000, guid: 4281d5f4b2fb44c4480c74ef09bc463e, type: 3}
-  - {fileID: 8300000, guid: 8c0a8bc62c94cca45b7a6b083672cb8a, type: 3}
+  - {fileID: 8300000, guid: 68911aabae9091046b5eff062afa541b, type: 3}
+  - {fileID: 8300000, guid: b54d072797f14e14bb865aeb2a41c1b0, type: 3}
+  - {fileID: 8300000, guid: 84575ada2bacc194d97bf04b00207777, type: 3}
   clickClip: {fileID: 8300000, guid: 609c7d933285d0e4795f84d8cedca513, type: 3}
   tileAddClip: {fileID: 8300000, guid: 5a9e447638726394b95bfa873abfe051, type: 3}
   levelSuccessClip: {fileID: 8300000, guid: cab43bdceb230aa43bf6a8ae39070a9a, type: 3}
